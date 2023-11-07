@@ -1,11 +1,15 @@
-# Role Name
+# linux-system-roles/snapshot
 
-[![ansible-lint.yml](https://github.com/linux-system-roles/template/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/linux-system-roles/template/actions/workflows/ansible-lint.yml) [![ansible-test.yml](https://github.com/linux-system-roles/template/actions/workflows/ansible-test.yml/badge.svg)](https://github.com/linux-system-roles/template/actions/workflows/ansible-test.yml) [![markdownlint.yml](https://github.com/linux-system-roles/template/actions/workflows/markdownlint.yml/badge.svg)](https://github.com/linux-system-roles/template/actions/workflows/markdownlint.yml) [![shellcheck.yml](https://github.com/linux-system-roles/template/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/linux-system-roles/template/actions/workflows/shellcheck.yml) [![woke.yml](https://github.com/linux-system-roles/template/actions/workflows/woke.yml/badge.svg)](https://github.com/linux-system-roles/template/actions/workflows/woke.yml)
+[![ansible-lint.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-lint.yml) [![ansible-test.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-test.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-test.yml) [![codeql.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/codeql.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/codeql.yml) [![integration.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/integration.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/integration.yml) [![markdownlint.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/markdownlint.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/markdownlint.yml) [![python-unit-test.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/python-unit-test.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/python-unit-test.yml) [![shellcheck.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/shellcheck.yml) [![woke.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/woke.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/woke.yml) [![Coverage Status](https://coveralls.io/repos/github/linux-system-roles/snapshot/badge.svg)](https://coveralls.io/github/linux-system-roles/snapshot) [![Code Style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/linux-system-roles/snapshot.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/linux-system-roles/snapshot/context:python)
 
-![template](https://github.com/linux-system-roles/template/workflows/tox/badge.svg)
 
-A template for an ansible role that configures some GNU/Linux subsystem or
-service. A brief description of the role goes here.
+![template](https://github.com/linux-system-roles/snapshot/workflows/tox/badge.svg)
+
+
+The `snapshot` role enables users to add/remove snapshots on target machines.
+This role can be used to configure snapshots via:
+
+- LVM
 
 ## Requirements
 
@@ -78,13 +82,13 @@ Including an example of how to use your role (for instance, with variables
 passed in as parameters) is always nice for users too:
 
 ```yaml
-- name: Manage the template subsystem
+- name: Manage the snapshot subsystem
   hosts: all
   vars:
-    template_foo: "foo foo!"
-    template_bar: false
+    snapshot_foo: "foo foo!"
+    snapshot_bar: false
   roles:
-    - linux-system-roles.template
+    - linux-system-roles.snapshot
 ```
 
 More examples can be provided in the [`examples/`](examples) directory. These

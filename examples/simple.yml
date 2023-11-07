@@ -1,9 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Example template role invocation
+- name: Example snapshot role invocation
   hosts: all
   vars:
-    template_foo: example variable value
-    template_bar: false
+    test_variable: testing
   roles:
-    - linux-system-roles.template
+    - linux-system-roles.snapshot
