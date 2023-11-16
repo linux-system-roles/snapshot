@@ -1,10 +1,8 @@
-# linux-system-roles/snapshot
+# snapshot
 
 [![ansible-lint.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-lint.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-lint.yml) [![ansible-test.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-test.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/ansible-test.yml) [![codeql.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/codeql.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/codeql.yml) [![integration.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/integration.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/integration.yml) [![markdownlint.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/markdownlint.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/markdownlint.yml) [![python-unit-test.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/python-unit-test.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/python-unit-test.yml) [![shellcheck.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/shellcheck.yml) [![woke.yml](https://github.com/linux-system-roles/snapshot/actions/workflows/woke.yml/badge.svg)](https://github.com/linux-system-roles/snapshot/actions/workflows/woke.yml) [![Coverage Status](https://coveralls.io/repos/github/linux-system-roles/snapshot/badge.svg)](https://coveralls.io/github/linux-system-roles/snapshot) [![Code Style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black) [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/linux-system-roles/snapshot.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/linux-system-roles/snapshot/context:python)
 
-
 ![template](https://github.com/linux-system-roles/snapshot/workflows/tox/badge.svg)
-
 
 The `snapshot` role enables users to add/remove snapshots on target machines.
 This role can be used to configure snapshots via:
@@ -13,92 +11,108 @@ This role can be used to configure snapshots via:
 
 ## Requirements
 
-Any prerequisites that may not be covered by Ansible itself or the role should
-be mentioned here.  This includes platform dependencies not managed by the
-role, hardware requirements, external collections, etc.  There should be a
-distinction between *control node* requirements (like collections) and
-*managed node* requirements (like special hardware, platform provisioning).
+See below
 
 ### Collection requirements
 
-For instance, if the role depends on some collections and
-has a `meta/collection-requirements.yml` file for installing those
-dependencies, it should be mentioned here that the user should run
-
-```bash
-ansible-galaxy collection install -vv -r meta/collection-requirements.yml
-```
-
-on the *control node* before using the role.
-
 ## Role Variables
 
-A description of all input variables (i.e. variables that are defined in
-`defaults/main.yml`) for the role should go here as these form an API of the
-role.  Each variable should have its own section e.g.
+### snapshot_lvm_action
 
-### template_foo
+This variable is required. It supports one of the following values:
 
-This variable is required.  It is a string that lists the foo of the role.
-There is no default value.
+- `snapshot`: Take snapshots of the specified VGs/LVs
 
-### template_bar
+- `check`: Validate that snapshot names don't have conflicts and there is sufficent space to take the snapshots
 
-This variable is optional.  It is a boolean that tells the role to disable bar.
-The default value is `true`.
+- `clean`: Remove snapshots that conform to the specified prefix and pattern
 
-Variables that are not intended as input, like variables defined in
-`vars/main.yml`, variables that are read from other roles and/or the global
-scope (ie. hostvars, group vars, etc.) can be also mentioned here but keep in
-mind that as these are probably not part of the role API they may change during
-the lifetime.
+### snapshot_lvm_prefix
 
-Example of setting the variables:
+This variable is required. snapshot_lvm_prefix is a string that will be
+prepended to the name of the LV when the snapshot is created.
 
-```yaml
-template_foo: "oof"
-template_bar: false
+### snapshot_lvm_suffix
+
+This variable is required. snapshot_lvm_prefix is a string that will be
+appended to the name of the LV when the snapshot is created.
+
+If before running the role, the following LVs exist:
+
+```text
+LV      VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+home    rhel -wi-ao----   1.00g
+root    rhel -wi-ao----  35.00g
+swap    rhel -wi-ao----  <3.88g
+lv1_vg1 vg1  -wi-a-----   1.00g
+lv2_vg1 vg1  -wi-a-----  40.00m
+lv1_vg2 vg2  -wi-a-----   1.00g
+lv2_vg2 vg2  -wi-a-----  80.00m
+lv1_vg3 vg3  -wi-a-----   1.00g
+lv3_vg3 vg3  -wi-a----- 120.00m
 ```
 
-## Variables Exported by the Role
+If the prefix is set to "a_" and the suffix is set to "_z", running the role will result
+in the following:
 
-This section is optional.  Some roles may export variables for playbooks to
-use later.  These are analogous to "return values" in Ansible modules.  For
-example, if a role performs some action that will require a system reboot, but
-the user wants to defer the reboot, the role might set a variable like
-`template_reboot_needed: true` that the playbook can use to reboot at a more
-convenient time.
-
-Example:
-
-### template_reboot_needed
-
-Default `false` - if `true`, this means a reboot is needed to apply the changes
-made by the role
-
-## Example Playbook
-
-Including an example of how to use your role (for instance, with variables
-passed in as parameters) is always nice for users too:
-
-```yaml
-- name: Manage the snapshot subsystem
-  hosts: all
-  vars:
-    snapshot_foo: "foo foo!"
-    snapshot_bar: false
-  roles:
-    - linux-system-roles.snapshot
+```text
+LV          VG   Attr       LSize   Pool Origin  Data%  Meta%  Move Log Cpy%Sync Convert
+a_home_z    rhel swi-a-s--- 104.00m      home    0.00
+a_root_z    rhel swi-a-s---   3.50g      root    0.01
+a_swap_z    rhel swi-a-s--- 400.00m      swap    0.00
+home        rhel owi-aos---   1.00g
+root        rhel owi-aos---  35.00g
+swap        rhel owi-aos---  <3.88g
+a_lv1_vg1_z vg1  swi-a-s--- 104.00m      lv1_vg1 0.00
+a_lv2_vg1_z vg1  swi-a-s---   8.00m      lv2_vg1 0.00
+lv1_vg1     vg1  owi-a-s---   1.00g
+lv2_vg1     vg1  owi-a-s---  40.00m
+a_lv1_vg2_z vg2  swi-a-s--- 104.00m      lv1_vg2 0.00
+a_lv2_vg2_z vg2  swi-a-s---  12.00m      lv2_vg2 0.00
+lv1_vg2     vg2  owi-a-s---   1.00g
+lv2_vg2     vg2  owi-a-s---  80.00m
+a_lv1_vg3_z vg3  swi-a-s--- 104.00m      lv1_vg3 0.00
+a_lv3_vg3_z vg3  swi-a-s---  16.00m      lv3_vg3 0.00
+lv1_vg3     vg3  owi-a-s---   1.00g
+lv3_vg3     vg3  owi-a-s--- 120.00m
 ```
 
-More examples can be provided in the [`examples/`](examples) directory. These
-can be useful, especially for documentation.
+### snapshot_lvm_percent_space_required
+
+This is required for check and snapshot actions.
+
+See the LVM man page for lvcreate with the -s (snapshot) and -L (size) options.
+The snapshot role will ensure that there is at least snapshot_lvm_percent_space_required
+space available in the VG.
+
+Note: LVM will round up size to full physical extent
+
+### snapshot_lvm_all_vgs
+
+This is a boolean value with default false.  If true the role will snapshot
+all VGs on the target system.
+
+### snapshot_lvm_vg
+
+If set, the role will create snapshots for all the logical volumes in the volume group.
+If snapshot_lvm_lv is also set, a snapshot will be created for only that logical volume
+in the volume group.
+
+### snapshot_lvm_lv
+
+If set, the role will create snapshots for the single logical volume in the volume group
+specified by snapshot_lvm_vg.  The parameter requires snapshot_lvm_vg is set to a valid
+volume group.
+
+### snapshot_lvm_verify_only
+
+If true, the check and clean commands verify that the system is in the correct state.
+For the clean command, the target system will be searched for any snapshots that would
+be removed by the clean command without snapshot_lvm_verify_only.
+
+snapshot_lvm_verify_only is intended to be used to double check that the snapshot or
+clean command have completed the operation correctly.
 
 ## License
 
-Whenever possible, please prefer MIT.
-
-## Author Information
-
-An optional section for the role authors to include contact information, or a
-website (HTML is not allowed).
+MIT
