@@ -1,0 +1,10 @@
+---
+- name: Verify that there is enough storage space
+  ansible.builtin.script: >-
+    snapshot.py check -a -r {{ snapshot_lvm_percent_space_required | quote }}
+    -p {{ snapshot_lvm_prefix | quote }} -s {{ snapshot_lvm_suffix | quote }}
+  register: snapshot_cmd
+  args:
+    executable: "{{ __snapshot_python }}"
+  failed_when:
+    snapshot_cmd.rc != 0

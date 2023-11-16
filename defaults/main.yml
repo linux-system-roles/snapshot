@@ -3,5 +3,7 @@
 # Here is the right place to put the role's input variables.
 # This file also serves as a documentation for such a variables.
 
-# Examples of role input variables:
-test_variable: "testing"
+snapshot_lvm_all_vgs: false
+snapshot_lvm_verify_only: false
+snapshot_lvm_vg: ''
+snapshot_lvm_lv: ''

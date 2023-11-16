@@ -3,16 +3,28 @@
 - name: Set platform/version specific variables
   include_tasks: tasks/set_vars.yml
 
-# Examples of some tasks:
 - name: Ensure required packages are installed
   package:
     name: "{{ __snapshot_packages }}"
     state: present
 
-- name: Ensure required services are enabled and started
-  service:
-    name: "{{ item }}"
-    state: started
-    enabled: true
-  loop: "{{ __snapshot_services }}"
+- name: Check Space
+  ansible.builtin.include_tasks: check_space.yml
+  when: snapshot_lvm_action == "check" and not snapshot_lvm_verify_only
+        and not snapshot_lvm_verify_only
 
+- name: Verify Complete
+  ansible.builtin.include_tasks: verify_complete.yml
+  when: snapshot_lvm_action == "check" and snapshot_lvm_verify_only
+
+- name: Snapshot Volumes
+  ansible.builtin.include_tasks: snapshot_all.yml
+  when: snapshot_lvm_action == "snapshot"
+
+- name: Cleanup Previous Snapshots
+  ansible.builtin.include_tasks: cleanup.yml
+  when: snapshot_lvm_action == "clean" and not snapshot_lvm_verify_only
+
+- name: Verify Cleanup
+  ansible.builtin.include_tasks: verify_cleanup.yml
+  when: snapshot_lvm_action == "clean" and snapshot_lvm_verify_only

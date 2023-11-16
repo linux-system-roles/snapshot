@@ -1,0 +1,66 @@
+---
+- name: Verify role fails when expected
+  block:
+
+    - name: Show __snapshot_failed_params
+      debug:
+        var: __snapshot_failed_params
+        verbosity: 1
+    - name: Verify role returns error
+      include_role:
+        name: linux-system-roles.snapshot
+      vars:
+        snapshot_lvm_percent_space_required: "{{
+          __snapshot_failed_params.get('snapshot_lvm_percent_space_required')
+          }}"
+        snapshot_all: "{{
+          __snapshot_failed_params.get('snapshot_all')
+          }}"
+        snapshot_lvm_suffix: "{{
+          __snapshot_failed_params.get('snapshot_lvm_suffix')
+          }}"
+        snapshot_lvm_prefix: "{{
+          __snapshot_failed_params.get('snapshot_lvm_prefix')
+          }}"
+        snapshot_lvm_action: "{{
+          __snapshot_failed_params.get('snapshot_lvm_action')
+          }}"
+        snapshot_lvm_verify_only: "{{
+          __snapshot_failed_params.get('snapshot_lvm_verify_only')
+          }}"
+        snapshot_lvm_vg: "{{
+          __snapshot_failed_params.get('snapshot_lvm_vg')
+          }}"
+        snapshot_lvm_lv: "{{
+          __snapshot_failed_params.get('snapshot_lvm_lv')
+          }}"
+    - name: Unreachable task
+      fail:
+        msg: UNREACH
+
+  rescue:
+    - name: Check that there was a failure in the role
+      assert:
+        that: ansible_failed_result.msg != 'UNREACH'
+        msg: Role has not failed when it should have
+
+    - name: Debug snapshot_cmd
+      debug:
+        var: snapshot_cmd
+        verbosity: 1
+
+    - name: Debug __snapshot_failed_regex
+      debug:
+        var: __snapshot_failed_regex
+        verbosity: 1
+
+    - name: Verify return code and message is correct
+      assert:
+        that:
+          - snapshot_cmd.failed
+          - snapshot_cmd.rc != 0
+          - snapshot_cmd.stdout_lines is search(__snapshot_failed_regex)
+        msg: "{{ __snapshot_failed_msg }}"
+      when:
+        - __snapshot_failed_regex is defined
+        - __snapshot_failed_msg is defined

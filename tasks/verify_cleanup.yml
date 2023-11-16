@@ -1,0 +1,15 @@
+---
+- name: Verify snapshot clean is completed
+  ansible.builtin.script: "{{ __cmd }}"
+  args:
+    executable: "{{ __snapshot_python }}"
+  register: snapshot_cmd
+  vars:
+    __cmd: "{{ 'snapshot.py clean ' ~
+      ('-a ' if snapshot_lvm_all_vgs == true else '') ~
+      '-v ' ~
+      '-p ' ~ (snapshot_lvm_prefix | quote) ~ ' ' ~
+      '-vg ' ~ (snapshot_lvm_vg | quote) ~ ' ' ~
+      '-lv ' ~ (snapshot_lvm_lv | quote) ~ ' ' ~
+      '-s ' ~ (snapshot_lvm_suffix | quote) }}"
+  failed_when: snapshot_cmd.rc != 0
