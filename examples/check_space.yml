@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Example snapshot role invocation
+  hosts: all
+  vars:
+    snapshot_lvm_action: check
+    snapshot_lvm_prefix: a_
+    snapshot_lvm_suffix: _z
+    snapshot_lvm_percent_space_required: 20
+    snapshot_lvm_all_vgs: true
+  roles:
+    - linux-system-roles.snapshot
