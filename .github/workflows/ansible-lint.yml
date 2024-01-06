@@ -35,7 +35,7 @@ jobs:
               sed "/galaxy_info:/a\  namespace: linux_system_roles" -i "$mm"
             fi
             if ! grep -q '^  *role_name:' "$mm"; then
-              sed "/galaxy_info:/a\  role_name: template" -i "$mm"
+              sed "/galaxy_info:/a\  role_name: snapshot" -i "$mm"
             fi
           fi
 

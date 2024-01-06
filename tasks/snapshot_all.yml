@@ -1,0 +1,10 @@
+---
+- name: Snapshot All VGs
+  ansible.builtin.script: >-
+    snapshot.py snapshot -a -r {{ snapshot_lvm_percent_space_required | quote }}
+    -p {{ snapshot_lvm_prefix | quote }}  -s {{ snapshot_lvm_suffix | quote }}
+  args:
+    executable: "{{ ansible_python.executable }}"
+  register: snapshot_cmd
+  failed_when:
+    snapshot_cmd.rc != 0

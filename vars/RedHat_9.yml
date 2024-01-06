@@ -2,6 +2,5 @@
 ---
 # Put internal variables here with Red Hat Enterprise Linux 9 specific values.
 
-# Example:
-__template_packages: []
-__template_services: []
+__snapshot_packages: []
+__snapshot_services: []
