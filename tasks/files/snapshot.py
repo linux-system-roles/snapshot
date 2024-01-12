@@ -33,7 +33,7 @@ class SnapshotCommand:
 
 class SnapshotStatus:
     SNAPSHOT_OK = 0
-    ERROR_INSUFFICENT_SPACE = 1
+    ERROR_INSUFFICIENT_SPACE = 1
     ERROR_ALREADY_DONE = 2
     ERROR_SNAPSHOT_FAILED = 3
     ERROR_REMOVE_FAILED = 4
@@ -313,7 +313,7 @@ def check_space_for_snapshots(vg, lvs, lv_name, required_percent):
     space_needed = percentof(required_percent, total_lv_used)
 
     logger.info(
-        "space needed: %.2f space available: %d sufficent space: %d",
+        "space needed: %.2f space available: %d sufficient space: %d",
         space_needed,
         vg_free,
         vg_free >= space_needed,
@@ -322,7 +322,7 @@ def check_space_for_snapshots(vg, lvs, lv_name, required_percent):
     if vg_free >= space_needed:
         return SnapshotStatus.SNAPSHOT_OK
 
-    return SnapshotStatus.ERROR_INSUFFICENT_SPACE
+    return SnapshotStatus.ERROR_INSUFFICIENT_SPACE
 
 
 def check_name_for_snapshot(vg_name, lv_name, prefix, suffix):
@@ -479,8 +479,8 @@ def check_lvs(required_space, vg_name, lv_name, prefix, suffix):
 
         if check_space_for_snapshots(volume_group, lvs, lv_name, required_space):
             return (
-                SnapshotStatus.ERROR_INSUFFICENT_SPACE,
-                "insufficent space for snapshots",
+                SnapshotStatus.ERROR_INSUFFICIENT_SPACE,
+                "insufficient space for snapshots",
             )
 
     return SnapshotStatus.SNAPSHOT_OK, ""
