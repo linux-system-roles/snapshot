@@ -15,6 +15,14 @@ See below
 
 ### Collection requirements
 
+If you want to manage `rpm-ostree` systems with this role, you will need to
+install additional collections.  Please run the following command line to
+install them:
+
+```bash
+ansible-galaxy collection install -vv -r meta/collection-requirements.yml
+```
+
 ## Role Variables
 
 ### snapshot_lvm_action
@@ -23,7 +31,7 @@ This variable is required. It supports one of the following values:
 
 - `snapshot`: Take snapshots of the specified VGs/LVs
 
-- `check`: Validate that snapshot names don't have conflicts and there is sufficent space to take the snapshots
+- `check`: Validate that snapshot names don't have conflicts and there is sufficient space to take the snapshots
 
 - `clean`: Remove snapshots that conform to the specified prefix and pattern
 
@@ -112,6 +120,10 @@ be removed by the clean command without snapshot_lvm_verify_only.
 
 snapshot_lvm_verify_only is intended to be used to double check that the snapshot or
 clean command have completed the operation correctly.
+
+## rpm-ostree
+
+See README-ostree.md
 
 ## License
 
