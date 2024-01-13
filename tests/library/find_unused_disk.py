@@ -76,6 +76,7 @@ disk_name:
 import os
 import re
 
+# pylint: disable=E0401, E0611
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.size import Size
 
