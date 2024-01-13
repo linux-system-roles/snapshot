@@ -46,9 +46,9 @@ class SnapshotStatus:
     ERROR_LV_NOTFOUND = 11
     ERROR_VERIFY_NOTSNAPSHOT = 12
     ERROR_VERIFY_COMMAND_FAILED = 13
-    ERROR_VERIFY_NOT_FOUND = 14,
+    ERROR_VERIFY_NOT_FOUND = 14
     ERROR_CMD_INVALID = 15
-    ERROR_VERIFY_REMOVE_FAILED = 16,
+    ERROR_VERIFY_REMOVE_FAILED = 16
     ERROR_VERIFY_REMOVE_SOURCE_SNAPSHOT = 17
 
 
@@ -121,9 +121,10 @@ def check_positive(value):
             raise argparse.ArgumentTypeError(
                 "{0:d} is not a positive integer".format(value)
             )
-    except ValueError as _error:
-        raise Exception("{0:04x} is not an integer, it is type {1}".format(
-            value, value.__class__))
+    except ValueError:
+        raise Exception(
+            "{0:04x} is not an integer, it is type {1}".format(value, value.__class__)
+        )
     return value
 
 
@@ -164,8 +165,7 @@ def lvm_full_report_json():
 
     except ValueError as error:
         logger.info(error)
-        raise LvmBug("'fullreport' decode failed : %s" %
-                     error.args[0])
+        raise LvmBug("'fullreport' decode failed : %s" % error.args[0])
 
     return lvm_json
 
@@ -326,7 +326,6 @@ def check_space_for_snapshots(vg, lvs, lv_name, required_percent):
 
 
 def check_name_for_snapshot(vg_name, lv_name, prefix, suffix):
-
     if prefix:
         prefix_len = len(prefix)
     else:
@@ -353,7 +352,7 @@ def verify_created(snapshot_all, vg_name, lv_name, prefix, suffix):
         # The list contains items that are not VGs
         try:
             list_item["vg"]
-        except KeyError as _e:
+        except KeyError:
             continue
 
         if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
@@ -369,7 +368,10 @@ def verify_created(snapshot_all, vg_name, lv_name, prefix, suffix):
             # Only verify that a snapshot exits for non-snapshot LVs
             rc, is_snapshot = lvm_is_snapshot(verify_vg_name, lvs["lv_name"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED, "check verify: command failed for LV lvm_is_snapshot()"
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "check verify: command failed for LV lvm_is_snapshot()",
+                )
 
             if is_snapshot:
                 continue
@@ -378,24 +380,41 @@ def verify_created(snapshot_all, vg_name, lv_name, prefix, suffix):
 
             rc, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED, "check verify: command failed for LV exists"
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "check verify: command failed for LV exists",
+                )
 
             if lv_exists:
-                rc, is_snapshot = lvm_is_snapshot(
-                    verify_vg_name, snapshot_name)
+                rc, is_snapshot = lvm_is_snapshot(verify_vg_name, snapshot_name)
                 if rc != SnapshotStatus.SNAPSHOT_OK:
-                    return SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED, "check verify: command failed for LV lvm_is_snapshot()"
+                    return (
+                        SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                        "check verify: command failed for LV lvm_is_snapshot()",
+                    )
 
                 if not is_snapshot:
-                    return SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT, "target logical volume exits, but it is not a snapshot"
+                    return (
+                        SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT,
+                        "target logical volume exits, but it is not a snapshot",
+                    )
             else:
-                return SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT, "target logical volume snapshot does not exist"
+                return (
+                    SnapshotStatus.ERROR_VERIFY_NOTSNAPSHOT,
+                    "target logical volume snapshot does not exist",
+                )
 
     if not snapshot_all:
         if vg_name and not vg_found:
-            return SnapshotStatus.ERROR_VG_NOTFOUND, "source volume group does not exist"
+            return (
+                SnapshotStatus.ERROR_VG_NOTFOUND,
+                "source volume group does not exist",
+            )
         if lv_name and not lv_found:
-            return SnapshotStatus.ERROR_LV_NOTFOUND, "source logical volume does not exist"
+            return (
+                SnapshotStatus.ERROR_LV_NOTFOUND,
+                "source logical volume does not exist",
+            )
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
@@ -408,15 +427,21 @@ def verify_snapshots_removed(vg_name, lv_name, prefix, suffix):
     if vg_name and lv_name:
         rc, is_snapshot = lvm_is_snapshot(vg_name, lv_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED, "command failed for LV lvm_is_snapshot() failed to get status on source"
+            return (
+                SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED,
+                "command failed for LV lvm_is_snapshot() failed to get status on source",
+            )
         if is_snapshot:
-            return SnapshotStatus.ERROR_VERIFY_REMOVE_SOURCE_SNAPSHOT, "source is a snapshot:" + vg_name + "/" + lv_name
+            return (
+                SnapshotStatus.ERROR_VERIFY_REMOVE_SOURCE_SNAPSHOT,
+                "source is a snapshot:" + vg_name + "/" + lv_name,
+            )
 
     for list_item in report:
         # The list contains items that are not VGs
         try:
             list_item["vg"]
-        except KeyError as _e:
+        except KeyError:
             continue
 
         if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
@@ -430,7 +455,10 @@ def verify_snapshots_removed(vg_name, lv_name, prefix, suffix):
 
             rc, is_snapshot = lvm_is_snapshot(verify_vg_name, lvs["lv_name"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED, "command failed for LV lvm_is_snapshot() failed to get status"
+                return (
+                    SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED,
+                    "command failed for LV lvm_is_snapshot() failed to get status",
+                )
 
             # Only verify for non-snapshot LVs
             if is_snapshot:
@@ -441,7 +469,13 @@ def verify_snapshots_removed(vg_name, lv_name, prefix, suffix):
             rc, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
 
             if lv_exists:
-                return SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED, "volume exists that matches the pattern: " + verify_vg_name + "/" + snapshot_name
+                return (
+                    SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED,
+                    "volume exists that matches the pattern: "
+                    + verify_vg_name
+                    + "/"
+                    + snapshot_name,
+                )
 
             rc, is_snapshot = lvm_is_snapshot(verify_vg_name, snapshot_name)
 
@@ -456,7 +490,7 @@ def check_lvs(required_space, vg_name, lv_name, prefix, suffix):
         # The list contains items that are not VGs
         try:
             list_item["vg"]
-        except KeyError as _e:
+        except KeyError:
             continue
 
         if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
@@ -493,8 +527,7 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, prefix, suffix)
     lv_found = False
 
     # check to make sure there is space and no name conflicts
-    rc, message = check_lvs(required_space,
-                            vg_name, lv_name, prefix, suffix)
+    rc, message = check_lvs(required_space, vg_name, lv_name, prefix, suffix)
 
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message
@@ -504,7 +537,7 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, prefix, suffix)
         # The list contains items that are not VGs
         try:
             list_item["vg"]
-        except KeyError as _e:
+        except KeyError:
             continue
 
         if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
@@ -526,8 +559,7 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, prefix, suffix)
                 continue
 
             lv_size = int(lv["lv_size"])
-            snap_size = round_up(
-                math.ceil(percentof(required_space, lv_size)), 512)
+            snap_size = round_up(math.ceil(percentof(required_space, lv_size)), 512)
 
             rc, message = snapshot_lv(
                 list_item["vg"][0]["vg_name"],
@@ -563,7 +595,7 @@ def snapshot_cleanup(volume_group, logical_volume, prefix, suffix):
         # The list contains items that are not VGs
         try:
             list_item["vg"]
-        except KeyError as _e:
+        except KeyError:
             continue
 
         vg_name = list_item["vg"][0]["vg_name"]
@@ -627,7 +659,12 @@ def snapshot_cmd(args):
     validate_args(args)
 
     rc, message = snapshot_lvs(
-        args.required_space, args.all, args.volume_group, args.logical_volume, args.prefix, args.suffix
+        args.required_space,
+        args.all,
+        args.volume_group,
+        args.logical_volume,
+        args.prefix,
+        args.suffix,
     )
 
     return rc, message
@@ -642,7 +679,7 @@ def check_cmd(args):
         args.logical_volume,
         args.prefix,
         args.suffix,
-        args.verify
+        args.verify,
     )
 
     validate_args(args)
@@ -653,7 +690,11 @@ def check_cmd(args):
         )
     else:
         rc, message = check_lvs(
-            args.required_space, args.volume_group, args.logical_volume, args.prefix, args.suffix
+            args.required_space,
+            args.volume_group,
+            args.logical_volume,
+            args.prefix,
+            args.suffix,
         )
 
     return rc, message
@@ -667,7 +708,7 @@ def clean_cmd(args):
         args.logical_volume,
         args.suffix,
         args.prefix,
-        args.verify
+        args.verify,
     )
 
     if args.all and args.volume_group:
@@ -675,9 +716,13 @@ def clean_cmd(args):
         sys.exit(1)
 
     if args.verify:
-        return verify_snapshots_removed(args.volume_group, args.logical_volume, args.prefix, args.suffix)
+        return verify_snapshots_removed(
+            args.volume_group, args.logical_volume, args.prefix, args.suffix
+        )
     else:
-        return snapshot_cleanup(args.volume_group, args.logical_volume, args.prefix, args.suffix)
+        return snapshot_cleanup(
+            args.volume_group, args.logical_volume, args.prefix, args.suffix
+        )
 
 
 def print_result(rc, message):
@@ -713,7 +758,7 @@ if __name__ == "__main__":
     snapshot_parser.add_argument(
         "-vg",
         "--volumegroup",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="volume_group",
@@ -722,7 +767,7 @@ if __name__ == "__main__":
     snapshot_parser.add_argument(
         "-lv",
         "--logicalvolume",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="logical_volume",
@@ -774,7 +819,7 @@ if __name__ == "__main__":
     check_parser.add_argument(
         "-vg",
         "--volumegroup",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="volume_group",
@@ -783,7 +828,7 @@ if __name__ == "__main__":
     check_parser.add_argument(
         "-lv",
         "--logicalvolume",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="logical_volume",
@@ -836,7 +881,7 @@ if __name__ == "__main__":
     clean_parser.add_argument(
         "-vg",
         "--volumegroup",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="volume_group",
@@ -845,7 +890,7 @@ if __name__ == "__main__":
     clean_parser.add_argument(
         "-lv",
         "--logicalvolume",
-        nargs='?',
+        nargs="?",
         action="store",
         default=None,
         dest="logical_volume",
