@@ -16,3 +16,25 @@ __snapshot_required_facts:
 # the 'gather_subset' parameter of the 'setup' module
 __snapshot_required_facts_subsets: "{{ ['!all', '!min'] +
   __snapshot_required_facts }}"
+
+__snapshot_cmd: "{{ 'snapshot.py ' ~ snapshot_lvm_action ~ ' ' ~
+  ('-a ' if snapshot_lvm_all_vgs else '') ~
+  ('-v ' if snapshot_lvm_verify_only else '') ~
+  ('-r ' if snapshot_lvm_percent_space_required else '') ~ ' ' ~
+  (snapshot_lvm_percent_space_required | quote
+    if snapshot_lvm_percent_space_required else '') ~ ' ' ~
+  ('-p ' if snapshot_lvm_prefix else '') ~ ' ' ~
+  (snapshot_lvm_prefix | quote
+    if snapshot_lvm_prefix else '') ~ ' ' ~
+  ('-vg ' if snapshot_lvm_vg else '') ~ ' ' ~
+  (snapshot_lvm_vg | quote
+    if snapshot_lvm_vg else '') ~ ' ' ~
+  ('-lv ' if snapshot_lvm_lv else '') ~ ' ' ~
+  (snapshot_lvm_lv | quote
+    if snapshot_lvm_lv else '') ~ ' ' ~
+  ('-s ' if snapshot_lvm_suffix else '') ~ ' ' ~
+  (snapshot_lvm_suffix | quote
+    if snapshot_lvm_suffix else '') ~ ' ' ~
+  ('-g ' if snapshot_lvm_set else '') ~ ' ' ~
+  (snapshot_lvm_set | to_json | quote
+    if snapshot_lvm_set else '') }}"

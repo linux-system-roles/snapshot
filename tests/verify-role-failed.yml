@@ -13,7 +13,7 @@
         snapshot_lvm_percent_space_required: "{{
           __snapshot_failed_params.get('snapshot_lvm_percent_space_required')
           }}"
-        snapshot_all: "{{
+        snapshot_lvm_all_vgs: "{{
           __snapshot_failed_params.get('snapshot_all')
           }}"
         snapshot_lvm_suffix: "{{
@@ -33,6 +33,9 @@
           }}"
         snapshot_lvm_lv: "{{
           __snapshot_failed_params.get('snapshot_lvm_lv')
+          }}"
+        snapshot_lvm_set: "{{
+          __snapshot_failed_params.get('__snapshot_lvm_set')
           }}"
     - name: Unreachable task
       fail:

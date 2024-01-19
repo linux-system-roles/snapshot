@@ -5,8 +5,9 @@
   gather_facts: false  # test that role works in this case
   vars:
     snapshot_lvm_action: check
-    snapshot_lvm_percent_space_required: 1
+    snapshot_lvm_percent_space_required: 2
     snapshot_lvm_prefix: a_
     snapshot_lvm_suffix: _z
+    snapshot_lvm_all_vgs: true
   roles:
     - linux-system-roles.snapshot

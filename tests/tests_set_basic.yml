@@ -1,6 +1,26 @@
 ---
-- name: Single LV snapshot test
+- name: Snapshot a set of logical volumes across different volume groups
   hosts: all
+  vars:
+    snapshot_test_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15
   tasks:
     - name: Run tests
       block:
@@ -54,49 +74,35 @@
                   - name: lv8
                     size: "10%"
 
-        - name: Run the snapshot role to create snapshot of single LV
+        - name: Run the snapshot role to create snapshot set of LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 15
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
-            snapshot_lvm_vg: test_vg1
-            snapshot_lvm_lv: lv1
             snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
 
-        - name: Verify the snapshot LV is created
+        - name: Run the snapshot role to verify the set of snapshots for the LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
-            snapshot_lvm_vg: test_vg1
-            snapshot_lvm_lv: lv1
-            snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
-
-        - name: Run the snapshot role remove the snapshot for single LV
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
-            snapshot_lvm_vg: test_vg1
-            snapshot_lvm_lv: lv1
-            snapshot_lvm_action: clean
-
-        - name: >-
-            Use the snapshot_lvm_verify_only option to make sure cleanup is done
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
             snapshot_lvm_verify_only: true
-            snapshot_lvm_vg: test_vg1
-            snapshot_lvm_lv: lv1
+
+        - name: Run the snapshot role cleanup the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
             snapshot_lvm_action: clean
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Run the snapshot role to verify the set is removed
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: clean
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
       always:
         - name: Clean up storage volumes
           include_role:
