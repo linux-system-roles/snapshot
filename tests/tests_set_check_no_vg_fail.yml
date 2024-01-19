@@ -1,5 +1,5 @@
 ---
-- name: Verify the check commmand fails when source LV doesn't exist
+- name: Verify the check commmand fails when source VG doesn't exist
   hosts: all
   tasks:
     - name: Run tests
@@ -30,19 +30,22 @@
                   - name: lv1
                     size: "50%"
 
-        - name: Test failure of check with verify only set for incorrect LV
+        - name: Test failure of check for incorrect VG
           include_tasks: verify-role-failed.yml
           vars:
-            __snapshot_failed_regex: "source logical volume does not exist:*"
-            __snapshot_failed_msg: >-
-              Role check did not fail with incorrect LV name
+            __snapshot_failed_regex:
+              "source volume group in snapset does not exist:*"
+            __snapshot_failed_msg: Role check did not fail with wrong VG
             __snapshot_failed_params:
-              snapshot_lvm_vg: test_vg1
-              snapshot_lvm_lv: xxxxx
-              snapshot_lvm_suffix: _z
-              snapshot_lvm_prefix: a_
-              snapshot_lvm_verify_only: true
               snapshot_lvm_action: check
+              snapshot_lvm_verify_only: true
+              __snapshot_lvm_set:
+                name: snapset1
+                volumes:
+                  - name: snapshot VG1 LV1
+                    vg: xxxx
+                    lv: lv1
+                    percent_space_required: 20
       always:
         - name: Clean up storage volumes
           include_role:

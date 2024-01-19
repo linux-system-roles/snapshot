@@ -1,11 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Remove snapshots from previous runs
-  ansible.builtin.script: >-
-    snapshot.py clean -a -p {{ snapshot_lvm_prefix | quote }}
-    -s {{ snapshot_lvm_suffix | quote }}
+  ansible.builtin.script: "{{ __snapshot_cmd }}"
   args:
     executable: "{{ __snapshot_python }}"
   register: snapshot_cmd
-  failed_when:
-    snapshot_cmd.rc != 0

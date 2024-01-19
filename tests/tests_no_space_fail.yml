@@ -2,54 +2,57 @@
 - name: Verify snapshot action fails if no space is available
   hosts: all
   tasks:
-    - name: Run the storage role to create test LVs
-      include_role:
-        name: fedora.linux_system_roles.storage
+    - name: Run tests
+      block:
+        - name: Run the storage role to create test LVs
+          include_role:
+            name: fedora.linux_system_roles.storage
 
-    - name: Get unused disks
-      include_tasks: get_unused_disk.yml
-      vars:
-        min_size: "1g"
-        min_return: 10
+        - name: Get unused disks
+          include_tasks: get_unused_disk.yml
+          vars:
+            min_size: "1g"
+            min_return: 10
 
-    - name: Set disk list
-      set_fact:
-        disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        - name: Set disk list
+          set_fact:
+            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
+              list }}"
 
-    - name: Create LVM logical volumes under volume groups
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            volumes:
-              - name: lv1
-                size: "100%"
+        - name: Create LVM logical volumes under volume groups
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
+                volumes:
+                  - name: lv1
+                    size: "100%"
 
-    - name: Test failure of creating snapshot
-      include_tasks: verify-role-failed.yml
-      vars:
-        __snapshot_failed_regex: insufficient space for snapshots
-        __snapshot_failed_msg: Role did not fail with no space error
-        __snapshot_failed_params:
-          snapshot_lvm_percent_space_required: 15
-          snapshot_all: true
-          snapshot_lvm_suffix: _z
-          snapshot_lvm_prefix: a_
-          snapshot_lvm_action: snapshot
-
-    - name: Clean up storage volumes
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_safe_mode: false
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            state: absent
-            volumes:
-              - name: lv1
+        - name: Test failure of creating snapshot
+          include_tasks: verify-role-failed.yml
+          vars:
+            __snapshot_failed_regex: insufficient space for snapshots
+            __snapshot_failed_msg: Role did not fail with no space error
+            __snapshot_failed_params:
+              snapshot_lvm_percent_space_required: 15
+              snapshot_all: true
+              snapshot_lvm_suffix: _z
+              snapshot_lvm_prefix: a_
+              snapshot_lvm_action: snapshot
+      always:
+        - name: Clean up storage volumes
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_safe_mode: false
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
                 state: absent
-              - name: lv2
-                state: absent
+                volumes:
+                  - name: lv1
+                    state: absent
+                  - name: lv2
+                    state: absent

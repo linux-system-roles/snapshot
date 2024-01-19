@@ -2,120 +2,126 @@
 - name: Basic snapshot test
   hosts: all
   tasks:
-    - name: Run the storage role to create test LVs
-      include_role:
-        name: fedora.linux_system_roles.storage
+    - name: Run tests
+      block:
+        - name: Run the storage role to create test LVs
+          include_role:
+            name: fedora.linux_system_roles.storage
 
-    - name: Get unused disks
-      include_tasks: get_unused_disk.yml
-      vars:
-        min_size: "1g"
-        min_return: 10
+        - name: Get unused disks
+          include_tasks: get_unused_disk.yml
+          vars:
+            min_size: "1g"
+            min_return: 10
 
-    - name: Set disk lists
-      set_fact:
-        disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
-        disk_list_2: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
-        disk_list_3: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        - name: Set disk lists
+          set_fact:
+            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
+              list }}"
+            disk_list_2: "{{ range(3, 6) | map('extract', unused_disks) |
+              list }}"
+            disk_list_3: "{{ range(6, 10) | map('extract', unused_disks) |
+              list }}"
 
-    - name: Create LVM logical volumes under volume groups
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            volumes:
-              - name: lv1
-                size: "15%"
-              - name: lv2
-                size: "50%"
-          - name: test_vg2
-            disks: "{{ disk_list_2 }}"
-            volumes:
-              - name: lv3
-                size: "10%"
-              - name: lv4
-                size: "20%"
-          - name: test_vg3
-            disks: "{{ disk_list_3 }}"
-            volumes:
-              - name: lv5
-                size: "30%"
-              - name: lv6
-                size: "25%"
-              - name: lv7
-                size: "10%"
-              - name: lv8
-                size: "10%"
+        - name: Create LVM logical volumes under volume groups
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
+                volumes:
+                  - name: lv1
+                    size: "15%"
+                  - name: lv2
+                    size: "50%"
+              - name: test_vg2
+                disks: "{{ disk_list_2 }}"
+                volumes:
+                  - name: lv3
+                    size: "10%"
+                  - name: lv4
+                    size: "20%"
+              - name: test_vg3
+                disks: "{{ disk_list_3 }}"
+                volumes:
+                  - name: lv5
+                    size: "30%"
+                  - name: lv6
+                    size: "25%"
+                  - name: lv7
+                    size: "10%"
+                  - name: lv8
+                    size: "10%"
 
-    - name: Run the snapshot role to create snapshot LVs
-      include_role:
-        name: linux-system-roles.snapshot
-      vars:
-        snapshot_lvm_percent_space_required: 15
-        snapshot_all: true
-        snapshot_lvm_suffix: _z
-        snapshot_lvm_prefix: a_
-        snapshot_lvm_action: snapshot
+        - name: Run the snapshot role to create snapshot LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_suffix: _z
+            snapshot_lvm_prefix: a_
+            snapshot_lvm_action: snapshot
 
-    - name: Verify the snapshot LVs are created
-      include_role:
-        name: linux-system-roles.snapshot
-      vars:
-        snapshot_lvm_suffix: _z
-        snapshot_lvm_prefix: a_
-        snapshot_lvm_verify_only: true
-        snapshot_lvm_action: check
+        - name: Verify the snapshot LVs are created
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_suffix: _z
+            snapshot_lvm_prefix: a_
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
 
-    - name: Run the snapshot role remove the snapshot LVs
-      include_role:
-        name: linux-system-roles.snapshot
-      vars:
-        snapshot_lvm_suffix: _z
-        snapshot_lvm_prefix: a_
-        snapshot_lvm_action: clean
+        - name: Run the snapshot role remove the snapshot LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_suffix: _z
+            snapshot_lvm_prefix: a_
+            snapshot_lvm_action: clean
 
-    - name: Use the snapshot_lvm_verify option to make sure cleanup is done
-      include_role:
-        name: linux-system-roles.snapshot
-      vars:
-        snapshot_lvm_suffix: _z
-        snapshot_lvm_prefix: a_
-        snapshot_lvm_verify_only: true
-        snapshot_lvm_action: clean
-
-    - name: Clean up storage volumes
-      include_role:
-        name: fedora.linux_system_roles.storage
-      vars:
-        storage_safe_mode: false
-        storage_pools:
-          - name: test_vg1
-            disks: "{{ disk_list_1 }}"
-            state: absent
-            volumes:
-              - name: lv1
+        - name: Use the snapshot_lvm_verify option to make sure cleanup is done
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_suffix: _z
+            snapshot_lvm_prefix: a_
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: clean
+      always:
+        - name: Clean up storage volumes
+          include_role:
+            name: fedora.linux_system_roles.storage
+          vars:
+            storage_safe_mode: false
+            storage_pools:
+              - name: test_vg1
+                disks: "{{ disk_list_1 }}"
                 state: absent
-              - name: lv2
+                volumes:
+                  - name: lv1
+                    state: absent
+                  - name: lv2
+                    state: absent
+              - name: test_vg2
+                disks: "{{ disk_list_2 }}"
                 state: absent
-          - name: test_vg2
-            disks: "{{ disk_list_2 }}"
-            state: absent
-            volumes:
-              - name: lv3
+                volumes:
+                  - name: lv3
+                    state: absent
+                  - name: lv4
+                    state: absent
+              - name: test_vg3
+                disks: "{{ disk_list_3 }}"
                 state: absent
-              - name: lv4
-                state: absent
-          - name: test_vg3
-            disks: "{{ disk_list_3 }}"
-            state: absent
-            volumes:
-              - name: lv5
-                state: absent
-              - name: lv6
-                state: absent
-              - name: lv7
-                state: absent
-              - name: lv8
-                state: absent
+                volumes:
+                  - name: lv5
+                    state: absent
+                  - name: lv6
+                    state: absent
+                  - name: lv7
+                    state: absent
+                  - name: lv8
+                    state: absent

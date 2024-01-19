@@ -19,7 +19,7 @@
             disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
               list }}"
 
-        - name: Create LVM logical volumes under volume groups
+        - name: Create LVM logical volumes under volume group
           include_role:
             name: fedora.linux_system_roles.storage
           vars:
@@ -30,19 +30,24 @@
                   - name: lv1
                     size: "50%"
 
-        - name: Test failure of check with verify only set for incorrect LV
+        - name: Test failure of check with verify set for incorrect LV
           include_tasks: verify-role-failed.yml
           vars:
-            __snapshot_failed_regex: "source logical volume does not exist:*"
+            percent_space_required: 15
+            __snapshot_failed_regex: >-
+              source logical volume in snapset does not*
             __snapshot_failed_msg: >-
               Role check did not fail with incorrect LV name
             __snapshot_failed_params:
-              snapshot_lvm_vg: test_vg1
-              snapshot_lvm_lv: xxxxx
-              snapshot_lvm_suffix: _z
-              snapshot_lvm_prefix: a_
-              snapshot_lvm_verify_only: true
               snapshot_lvm_action: check
+              snapshot_lvm_verify_only: true
+              __snapshot_lvm_set:
+                name: snapset1
+                volumes:
+                  - name: snapshot VG1 LV1
+                    vg: test_vg1
+                    lv: xxxxx
+                    percent_space_required: 20
       always:
         - name: Clean up storage volumes
           include_role:

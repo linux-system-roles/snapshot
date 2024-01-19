@@ -35,14 +35,43 @@ This variable is required. It supports one of the following values:
 
 - `clean`: Remove snapshots that conform to the specified prefix and pattern
 
+### snapshot_lvm_set
+
+The snapshot role supports sets of volumes.  Sets may contain any number of volumes.
+Sets are defined in the following format:
+
+```text
+    snapshot_lvm_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG1 LV1
+          vg: test_vg2
+          lv: lv1
+          percent_space_required: 25
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15
+```
+
+If before running the role, with :
+
 ### snapshot_lvm_prefix
 
-This variable is required. snapshot_lvm_prefix is a string that will be
+This variable is required if not using sets. snapshot_lvm_prefix is a string that will be
 prepended to the name of the LV when the snapshot is created.
 
 ### snapshot_lvm_suffix
 
-This variable is required. snapshot_lvm_prefix is a string that will be
+This variable is required if not using sets. snapshot_lvm_prefix is a string that will be
 appended to the name of the LV when the snapshot is created.
 
 If before running the role, the following LVs exist:
@@ -87,7 +116,7 @@ lv3_vg3     vg3  owi-a-s--- 120.00m
 
 ### snapshot_lvm_percent_space_required
 
-This is required for check and snapshot actions.
+This is required for check and snapshot actions if not using sets.
 
 See the LVM man page for lvcreate with the -s (snapshot) and -L (size) options.
 The snapshot role will ensure that there is at least snapshot_lvm_percent_space_required
@@ -98,13 +127,14 @@ Note: LVM will round up size to full physical extent
 ### snapshot_lvm_all_vgs
 
 This is a boolean value with default false.  If true the role will snapshot
-all VGs on the target system.
+all VGs on the target system.  If false, the snapshot_lvm_vg must be set.
 
 ### snapshot_lvm_vg
 
 If set, the role will create snapshots for all the logical volumes in the volume group.
 If snapshot_lvm_lv is also set, a snapshot will be created for only that logical volume
-in the volume group.
+in the volume group. If neither snapshot_lvm_all_vgs or snapshot_lvm_set are set,
+snapshot_lvm_vg is required.
 
 ### snapshot_lvm_lv
 

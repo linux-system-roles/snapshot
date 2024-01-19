@@ -1,5 +1,5 @@
 ---
-- name: Verify the check commmand fails when source LV doesn't exist
+- name: Verify snapshot action fails if no space is available
   hosts: all
   tasks:
     - name: Run tests
@@ -28,21 +28,23 @@
                 disks: "{{ disk_list_1 }}"
                 volumes:
                   - name: lv1
-                    size: "50%"
+                    size: "100%"
 
-        - name: Test failure of check with verify only set for incorrect LV
+        - name: Test failure of creating snapshot that is part of a set
           include_tasks: verify-role-failed.yml
           vars:
-            __snapshot_failed_regex: "source logical volume does not exist:*"
-            __snapshot_failed_msg: >-
-              Role check did not fail with incorrect LV name
+            __snapshot_failed_regex: "insufficient space for snapshots in:*"
+            __snapshot_failed_msg: Role did not fail with no space error
             __snapshot_failed_params:
-              snapshot_lvm_vg: test_vg1
-              snapshot_lvm_lv: xxxxx
-              snapshot_lvm_suffix: _z
-              snapshot_lvm_prefix: a_
+              snapshot_lvm_action: snapshot
               snapshot_lvm_verify_only: true
-              snapshot_lvm_action: check
+              __snapshot_lvm_set:
+                name: snapset1
+                volumes:
+                  - name: snapshot VG1 LV1
+                    vg: test_vg1
+                    lv: lv1
+                    percent_space_required: 50
       always:
         - name: Clean up storage volumes
           include_role:
@@ -55,4 +57,6 @@
                 state: absent
                 volumes:
                   - name: lv1
+                    state: absent
+                  - name: lv2
                     state: absent
