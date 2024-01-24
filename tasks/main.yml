@@ -29,3 +29,7 @@
 - name: Verify Cleanup
   ansible.builtin.include_tasks: verify_cleanup.yml
   when: snapshot_lvm_action == "clean" and snapshot_lvm_verify_only
+
+- name: Revert to Snapshot
+  ansible.builtin.include_tasks: revert.yml
+  when: snapshot_lvm_action == "revert"

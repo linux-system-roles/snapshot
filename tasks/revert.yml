@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Revert LV to snapshot
+  ansible.builtin.script: "{{ __snapshot_cmd }}"
+  args:
+    executable: "{{ __snapshot_python }}"
+  register: snapshot_cmd
