@@ -144,6 +144,8 @@ id="toc-collection-requirements">Collection requirements</a></li>
 <ul>
 <li><a href="#snapshot_lvm_action"
 id="toc-snapshot_lvm_action">snapshot_lvm_action</a></li>
+<li><a href="#snapshot_lvm_set"
+id="toc-snapshot_lvm_set">snapshot_lvm_set</a></li>
 <li><a href="#snapshot_lvm_prefix"
 id="toc-snapshot_lvm_prefix">snapshot_lvm_prefix</a></li>
 <li><a href="#snapshot_lvm_suffix"
@@ -193,12 +195,37 @@ conflicts and there is sufficient space to take the snapshots</p></li>
 <li><p><code>clean</code>: Remove snapshots that conform to the
 specified prefix and pattern</p></li>
 </ul>
+<h2 id="snapshot_lvm_set">snapshot_lvm_set</h2>
+<p>The snapshot role supports sets of volumes. Sets may contain any
+number of volumes. Sets are defined in the following format:</p>
+<pre class="text"><code>    snapshot_lvm_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG1 LV1
+          vg: test_vg2
+          lv: lv1
+          percent_space_required: 25
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15</code></pre>
+<p>If before running the role, with :</p>
 <h2 id="snapshot_lvm_prefix">snapshot_lvm_prefix</h2>
-<p>This variable is required. snapshot_lvm_prefix is a string that will
-be prepended to the name of the LV when the snapshot is created.</p>
+<p>This variable is required if not using sets. snapshot_lvm_prefix is a
+string that will be prepended to the name of the LV when the snapshot is
+created.</p>
 <h2 id="snapshot_lvm_suffix">snapshot_lvm_suffix</h2>
-<p>This variable is required. snapshot_lvm_prefix is a string that will
-be appended to the name of the LV when the snapshot is created.</p>
+<p>This variable is required if not using sets. snapshot_lvm_prefix is a
+string that will be appended to the name of the LV when the snapshot is
+created.</p>
 <p>If before running the role, the following LVs exist:</p>
 <pre class="text"><code>LV      VG   Attr       LSize   Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
 home    rhel -wi-ao----   1.00g
@@ -233,18 +260,22 @@ lv1_vg3     vg3  owi-a-s---   1.00g
 lv3_vg3     vg3  owi-a-s--- 120.00m</code></pre>
 <h2
 id="snapshot_lvm_percent_space_required">snapshot_lvm_percent_space_required</h2>
-<p>This is required for check and snapshot actions.</p>
+<p>This is required for check and snapshot actions if not using
+sets.</p>
 <p>See the LVM man page for lvcreate with the -s (snapshot) and -L
 (size) options. The snapshot role will ensure that there is at least
 snapshot_lvm_percent_space_required space available in the VG.</p>
 <p>Note: LVM will round up size to full physical extent</p>
 <h2 id="snapshot_lvm_all_vgs">snapshot_lvm_all_vgs</h2>
 <p>This is a boolean value with default false. If true the role will
-snapshot all VGs on the target system.</p>
+snapshot all VGs on the target system. If false, the snapshot_lvm_vg
+must be set.</p>
 <h2 id="snapshot_lvm_vg">snapshot_lvm_vg</h2>
 <p>If set, the role will create snapshots for all the logical volumes in
 the volume group. If snapshot_lvm_lv is also set, a snapshot will be
-created for only that logical volume in the volume group.</p>
+created for only that logical volume in the volume group. If neither
+snapshot_lvm_all_vgs or snapshot_lvm_set are set, snapshot_lvm_vg is
+required.</p>
 <h2 id="snapshot_lvm_lv">snapshot_lvm_lv</h2>
 <p>If set, the role will create snapshots for the single logical volume
 in the volume group specified by snapshot_lvm_vg. The parameter requires
