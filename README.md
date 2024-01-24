@@ -35,6 +35,10 @@ This variable is required. It supports one of the following values:
 
 - `clean`: Remove snapshots that conform to the specified prefix and pattern
 
+- `revert`: Revert to snapshots that are specifed by either the pattern or set.  If either the source LV or
+            snapshot are open, the merge is deferred until the next time the server reboots and the
+            source logical volume is activated.
+
 ### snapshot_lvm_set
 
 The snapshot role supports sets of volumes.  Sets may contain any number of volumes.

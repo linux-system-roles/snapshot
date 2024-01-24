@@ -10,6 +10,7 @@ import sys
 
 logger = logging.getLogger("snapshot-role")
 
+LVM_NOTFOUND_RC = 5
 MAX_LVM_NAME = 127
 CHUNK_SIZE = 65536
 
@@ -42,6 +43,7 @@ class SnapshotCommand:
     SNAPSHOT = "snapshot"
     SNAPSHOT_CHECK = "check"
     SNAPSHOT_CLEAN = "clean"
+    SNAPSHOT_REVERT = "revert"
 
 
 class SnapshotStatus:
@@ -69,6 +71,7 @@ class SnapshotStatus:
     ERROR_JSON_PARSER_ERROR = 21
     ERROR_INVALID_PERCENT_REQUESTED = 22
     ERROR_UNKNOWN_FAILURE = 23
+    ERROR_REVERT_FAILED = 24
 
 
 # what percentage is part of whole
@@ -252,6 +255,9 @@ def lvm_is_snapshot(vg_name, snapshot_name):
 
     rc, output = run_command(lvs_command)
 
+    if rc == LVM_NOTFOUND_RC:
+        return SnapshotStatus.SNAPSHOT_OK, False
+
     if rc:
         return SnapshotStatus.ERROR_LVS_FAILED, None
 
@@ -298,6 +304,75 @@ def lvm_snapshot_remove(vg_name, snapshot_name):
 
     if rc:
         return SnapshotStatus.ERROR_REMOVE_FAILED, output
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def revert_lv(vg_name, lv_name, prefix, suffix):
+    snapshot_name = get_snapshot_name(lv_name, prefix, suffix)
+
+    rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
+
+    if lv_exists:
+        if not lvm_is_snapshot(vg_name, snapshot_name):
+            return (
+                SnapshotStatus.ERROR_REVERT_FAILED,
+                "LV with name: " + vg_name + "/" + snapshot_name + " is not a snapshot",
+            )
+    else:
+        return (
+            SnapshotStatus.ERROR_REVERT_FAILED,
+            "snapshot not found with name: " + vg_name + "/" + snapshot_name,
+        )
+
+    revert_command = ["lvconvert", "--merge", vg_name + "/" + snapshot_name]
+
+    rc, output = run_command(revert_command)
+
+    if rc:
+        return SnapshotStatus.ERROR_REVERT_FAILED, output
+
+    return SnapshotStatus.SNAPSHOT_OK, output
+
+
+def revert_lvs(vg_name, lv_name, prefix, suffix):
+    lvm_json = lvm_full_report_json()
+    report = lvm_json["report"]
+
+    # Revert snapshots
+    for list_item in report:
+        # The list contains items that are not VGs
+        try:
+            list_item["vg"]
+        except KeyError:
+            continue
+        vg = list_item["vg"][0]["vg_name"]
+        if vg_name and vg != vg_name:
+            continue
+
+        for lv in list_item["lv"]:
+            lv = lv["lv_name"]
+            if lv_name and lv != lv_name:
+                continue
+
+            # Make sure the source LV isn't a snapshot.
+            rc, is_snapshot = lvm_is_snapshot(vg, lv)
+
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                raise LvmBug("'lvs' failed '%d'" % rc)
+
+            if is_snapshot:
+                continue
+
+            rc, message = revert_lv(
+                vg,
+                lv,
+                prefix,
+                suffix,
+            )
+
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return rc, message
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
@@ -552,6 +627,23 @@ def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, prefix, suffix):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
+def revert_snapshot_set(snapset_json):
+    snapset_name = snapset_json["name"]
+    volume_list = snapset_json["volumes"]
+    logger.info("clean snapsset : %s", snapset_name)
+
+    for list_item in volume_list:
+        vg = list_item["vg"]
+        lv = list_item["lv"]
+
+        rc, message = revert_lv(vg, lv, None, get_snapset_suffix(snapset_name))
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
 def clean_snapshot_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
@@ -562,6 +654,14 @@ def clean_snapshot_set(snapset_json):
         lv = list_item["lv"]
 
         snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+
+        rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
+
+        if not vg_exists or not lv_exists:
+            continue
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, "failed to get LV status"
 
         rc, message = lvm_snapshot_remove(vg, snapshot_name)
 
@@ -1051,11 +1151,13 @@ def validate_args(args):
         print("One of --prefix or --suffix is required : ", args.operation)
         sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
-    rc, message, _required_space = get_required_space(args.required_space)
+    # not all commands include required_space
+    if hasattr(args, "required_space"):
+        rc, message, _required_space = get_required_space(args.required_space)
 
-    if rc != SnapshotStatus.SNAPSHOT_OK:
-        print(message)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            print(message)
+            sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
     return True
 
@@ -1282,6 +1384,50 @@ def clean_cmd(args):
     return rc, message
 
 
+def revert_cmd(args):
+    logger.info(
+        "revert_cmd: %s %s %s %s %s %d %s",
+        args.operation,
+        args.volume_group,
+        args.logical_volume,
+        args.suffix,
+        args.prefix,
+        args.verify,
+        args.set_json,
+    )
+
+    if args.set_json is None:
+        validate_args(args)
+
+        if args.verify:
+            rc, message = clean_verify_snapshots(
+                args.volume_group,
+                args.logical_volume,
+                args.prefix,
+                args.suffix,
+            )
+        else:
+            rc, message = revert_lvs(
+                args.volume_group,
+                args.logical_volume,
+                args.prefix,
+                args.suffix,
+            )
+    else:
+        rc, message, snapset_json = validate_snapset_json(
+            SnapshotCommand.SNAPSHOT_CHECK, args.set_json, args.verify
+        )
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+        if args.verify:
+            rc, message = clean_verify_snapshot_set(snapset_json)
+        else:
+            rc, message = revert_snapshot_set(snapset_json)
+
+    return rc, message
+
+
 if __name__ == "__main__":
     set_up_logging()
 
@@ -1290,15 +1436,9 @@ if __name__ == "__main__":
     os.environ["LC_ALL"] = "C"
     os.environ["LVM_COMMAND_PROFILE"] = "lvmdbusd"
 
-    parser = argparse.ArgumentParser(description="Snapshot Operations")
-
-    # sub-parsers
-    subparsers = parser.add_subparsers(dest="operation", help="Available operations")
-
-    # sub-parser for 'snapshot'
-    snapshot_parser = subparsers.add_parser("snapshot", help="Snapshot given VG/LVs")
-    snapshot_parser.set_defaults(func=snapshot_cmd)
-    snapshot_parser.add_argument(
+    # arguments common to all operations
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument(
         "-g",
         "--group",
         nargs="?",
@@ -1307,7 +1447,7 @@ if __name__ == "__main__":
         default=None,
         dest="set_json",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-a",
         "--all",
         action="store_true",
@@ -1315,7 +1455,7 @@ if __name__ == "__main__":
         dest="all",
         help="snapshot all VGs and LVs",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-vg",
         "--volumegroup",
         nargs="?",
@@ -1324,7 +1464,7 @@ if __name__ == "__main__":
         dest="volume_group",
         help="volume group to snapshot",
     )
-    snapshot_parser.add_argument(
+    common_parser.add_argument(
         "-lv",
         "--logicalvolume",
         nargs="?",
@@ -1333,8 +1473,36 @@ if __name__ == "__main__":
         dest="logical_volume",
         help="logical volume to snapshot",
     )
+    common_parser.add_argument(
+        "-s",
+        "--suffix",
+        dest="suffix",
+        type=str,
+        help="suffix to add to volume name for snapshot",
+    )
+    common_parser.add_argument(
+        "-p",
+        "--prefix",
+        dest="prefix",
+        type=str,
+        help="prefix to add to volume name for snapshot",
+    )
+
+    # arguments for operations that do verify
+    verify_parser = argparse.ArgumentParser(add_help=False)
+    verify_parser.add_argument(
+        "-v",
+        "--verify",
+        action="store_true",
+        default=False,
+        dest="verify",
+        help="verify VGs and LVs have snapshots",
+    )
+
+    # arguments for operations that deal with required space
+    req_space_parser = argparse.ArgumentParser(add_help=False)
     # TODO: range check required space - setting choices to a range makes the help ugly.
-    snapshot_parser.add_argument(
+    req_space_parser.add_argument(
         "-r",
         "--requiredspace",
         dest="required_space",
@@ -1343,152 +1511,39 @@ if __name__ == "__main__":
         default=20,
         help="percent of required space in the volume group to be reserved for snapshot",
     )
-    snapshot_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for snapshot",
+
+    parser = argparse.ArgumentParser(description="Snapshot Operations")
+
+    # sub-parsers
+    subparsers = parser.add_subparsers(dest="operation", help="Available operations")
+
+    # sub-parser for 'snapshot'
+    snapshot_parser = subparsers.add_parser(
+        "snapshot",
+        help="Snapshot given VG/LVs",
+        parents=[common_parser, req_space_parser],
     )
-    snapshot_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for snapshot",
-    )
+    snapshot_parser.set_defaults(func=snapshot_cmd)
 
     # sub-parser for 'check'
-    check_parser = subparsers.add_parser("check", help="Check space for given VG/LV")
-    check_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
-    check_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        default=False,
-        dest="all",
-        help="check all VGs and LVs",
-    )
-    check_parser.add_argument(
-        "-v",
-        "--verify",
-        action="store_true",
-        default=False,
-        dest="verify",
-        help="verify VGs and LVs have snapshots",
-    )
-    check_parser.add_argument(
-        "-vg",
-        "--volumegroup",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="volume_group",
-        help="volume group to check",
-    )
-    check_parser.add_argument(
-        "-lv",
-        "--logicalvolume",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="logical_volume",
-        help="logical volume to check",
-    )
-    # TODO: range check required space - setting choices to a range makes the help ugly.
-    check_parser.add_argument(
-        "-r",
-        "--requiredspace",
-        dest="required_space",
-        default=20,
-        required=False,
-        type=int,  # choices=range(10,100),
-        help="percent of required space in the volume group to be reserved for check",
-    )
-    check_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for check - will verify no name conflicts",
-    )
-    check_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for check - will verify no name conflicts",
+    check_parser = subparsers.add_parser(
+        "check",
+        help="Check space for given VG/LV",
+        parents=[common_parser, req_space_parser, verify_parser],
     )
     check_parser.set_defaults(func=check_cmd)
 
     # sub-parser for 'clean'
-    clean_parser = subparsers.add_parser("clean", help="Cleanup snapshots")
-    clean_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
-    clean_parser.add_argument(
-        "-a",
-        "--all",
-        action="store_true",
-        default=False,
-        dest="all",
-        help="clean all VGs and LVs",
-    )
-    clean_parser.add_argument(
-        "-v",
-        "--verify",
-        action="store_true",
-        default=False,
-        dest="verify",
-        help="verify VG and LV snapshots have been cleaned",
-    )
-    clean_parser.add_argument(
-        "-vg",
-        "--volumegroup",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="volume_group",
-        help="volume group to cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-lv",
-        "--logicalvolume",
-        nargs="?",
-        action="store",
-        default=None,
-        dest="logical_volume",
-        help="logical volume to cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-s",
-        "--suffix",
-        dest="suffix",
-        type=str,
-        help="suffix to add to volume name for cleanup/remove",
-    )
-    clean_parser.add_argument(
-        "-p",
-        "--prefix",
-        dest="prefix",
-        type=str,
-        help="prefix to add to volume name for cleanup/remove",
+    clean_parser = subparsers.add_parser(
+        "clean", help="Cleanup snapshots", parents=[common_parser, verify_parser]
     )
     clean_parser.set_defaults(func=clean_cmd)
+
+    # sub-parser for 'revert'
+    revert_parser = subparsers.add_parser(
+        "revert", help="Revert to snapshots", parents=[common_parser, verify_parser]
+    )
+    revert_parser.set_defaults(func=revert_cmd)
 
     args = parser.parse_args()
     return_code, display_message = args.func(args)
