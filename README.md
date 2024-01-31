@@ -39,6 +39,9 @@ This variable is required. It supports one of the following values:
             snapshot are open, the merge is deferred until the next time the server reboots and the
             source logical volume is activated.
 
+- `extend`: Extend snapshot to have at least snapshot_lvm_percent_space_required space allocated to the
+            snapshot.  Allocations are rounded up to the next multiple of the volume group extent size.
+
 ### snapshot_lvm_set
 
 The snapshot role supports sets of volumes.  Sets may contain any number of volumes.

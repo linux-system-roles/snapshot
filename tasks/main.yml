@@ -33,3 +33,7 @@
 - name: Revert to Snapshot
   ansible.builtin.include_tasks: revert.yml
   when: snapshot_lvm_action == "revert"
+
+- name: Extend Snapshots
+  ansible.builtin.include_tasks: extend.yml
+  when: snapshot_lvm_action == "extend"
