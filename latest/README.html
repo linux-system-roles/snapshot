@@ -198,6 +198,10 @@ specified prefix and pattern</p></li>
 either the pattern or set. If either the source LV or snapshot are open,
 the merge is deferred until the next time the server reboots and the
 source logical volume is activated.</p></li>
+<li><p><code>extend</code>: Extend snapshot to have at least
+snapshot_lvm_percent_space_required space allocated to the snapshot.
+Allocations are rounded up to the next multiple of the volume group
+extent size.</p></li>
 </ul>
 <h2 id="snapshot_lvm_set">snapshot_lvm_set</h2>
 <p>The snapshot role supports sets of volumes. Sets may contain any
