@@ -42,7 +42,7 @@ class VGSpaceState:
 class SnapshotCommand:
     SNAPSHOT = "snapshot"
     CHECK = "check"
-    CLEAN = "clean"
+    REMOVE = "remove"
     REVERT = "revert"
     EXTEND = "extend"
 
@@ -803,7 +803,7 @@ def check_lvs(required_space, vg_name, lv_name, prefix, suffix):
 def check_verify_lvs_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
-    logger.info("clean snapsset : %s", snapset_name)
+    logger.info("check snapsset : %s", snapset_name)
 
     # Check to make sure all the source vgs/lvs exist
     rc, message = verify_snapset_source_lvs_exist(snapset_json)
@@ -927,7 +927,7 @@ def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, prefix, suffix):
 def revert_snapshot_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
-    logger.info("clean snapsset : %s", snapset_name)
+    logger.info("revert snapsset : %s", snapset_name)
 
     for list_item in volume_list:
         vg = list_item["vg"]
@@ -941,10 +941,10 @@ def revert_snapshot_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def clean_snapshot_set(snapset_json):
+def remove_snapshot_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
-    logger.info("clean snapsset : %s", snapset_name)
+    logger.info("remove snapsset : %s", snapset_name)
 
     # check to make sure the set is removable before attempting to remove
     for list_item in volume_list:
@@ -991,11 +991,11 @@ def clean_snapshot_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def clean_verify_snapshot_set(snapset_json):
+def remove_verify_snapshot_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
 
-    logger.info("clean verify snapsset : %s", snapset_name)
+    logger.info("remove verify snapsset : %s", snapset_name)
 
     for list_item in volume_list:
         vg = list_item["vg"]
@@ -1019,7 +1019,7 @@ def clean_verify_snapshot_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def clean_snapshots(volume_group, logical_volume, prefix, suffix):
+def remove_snapshots(volume_group, logical_volume, prefix, suffix):
     rc = SnapshotStatus.SNAPSHOT_OK
     message = ""
     lvm_json = lvm_full_report_json()
@@ -1060,7 +1060,7 @@ def clean_snapshots(volume_group, logical_volume, prefix, suffix):
     return rc, message
 
 
-def clean_verify_snapshots(vg_name, lv_name, prefix, suffix):
+def remove_verify_snapshots(vg_name, lv_name, prefix, suffix):
     lvm_json = lvm_full_report_json()
     report = lvm_json["report"]
 
@@ -1590,7 +1590,7 @@ def validate_snapset_json(cmd, snapset, verify_only):
         rc, message = validate_json_request(snapset_json, True)
     elif cmd == SnapshotCommand.CHECK and verify_only:
         rc, message = validate_json_request(snapset_json, False)
-    elif cmd == SnapshotCommand.CLEAN:
+    elif cmd == SnapshotCommand.REMOVE:
         rc, message = validate_json_request(snapset_json, False)
     else:
         rc = SnapshotStatus.ERROR_UNKNOWN_FAILURE
@@ -1683,9 +1683,9 @@ def check_cmd(args):
     return rc, message
 
 
-def clean_cmd(args):
+def remove_cmd(args):
     logger.info(
-        "clean_cmd: %s %s %s %s %s %d %s",
+        "remove_cmd: %s %s %s %s %s %d %s",
         args.operation,
         args.volume_group,
         args.logical_volume,
@@ -1701,25 +1701,25 @@ def clean_cmd(args):
             sys.exit(1)
 
         if args.verify:
-            return clean_verify_snapshots(
+            return remove_verify_snapshots(
                 args.volume_group, args.logical_volume, args.prefix, args.suffix
             )
         else:
-            return clean_snapshots(
+            return remove_snapshots(
                 args.volume_group, args.logical_volume, args.prefix, args.suffix
             )
     else:
         rc, message, snapset_json = validate_snapset_json(
-            SnapshotCommand.CLEAN, args.set_json, args.verify
+            SnapshotCommand.REMOVE, args.set_json, args.verify
         )
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message
 
         if args.verify:
-            rc, message = clean_verify_snapshot_set(snapset_json)
+            rc, message = remove_verify_snapshot_set(snapset_json)
         else:
-            rc, message = clean_snapshot_set(snapset_json)
+            rc, message = remove_snapshot_set(snapset_json)
     return rc, message
 
 
@@ -1739,7 +1739,7 @@ def revert_cmd(args):
         validate_args(args)
 
         if args.verify:
-            rc, message = clean_verify_snapshots(
+            rc, message = remove_verify_snapshots(
                 args.volume_group,
                 args.logical_volume,
                 args.prefix,
@@ -1760,7 +1760,9 @@ def revert_cmd(args):
             return rc, message
 
         if args.verify:
-            rc, message = clean_verify_snapshot_set(snapset_json)
+            # revert re-uses the remove verify since both commands should
+            # cause the snapshot to no longer exist
+            rc, message = remove_verify_snapshot_set(snapset_json)
         else:
             rc, message = revert_snapshot_set(snapset_json)
 
@@ -1918,13 +1920,13 @@ if __name__ == "__main__":
     )
     check_parser.set_defaults(func=check_cmd)
 
-    # sub-parser for 'clean'
-    clean_parser = subparsers.add_parser(
-        SnapshotCommand.CLEAN,
-        help="Cleanup snapshots",
+    # sub-parser for 'remove'
+    remove_parser = subparsers.add_parser(
+        SnapshotCommand.REMOVE,
+        help="Remove snapshots",
         parents=[common_parser, verify_parser],
     )
-    clean_parser.set_defaults(func=clean_cmd)
+    remove_parser.set_defaults(func=remove_cmd)
 
     # sub-parser for 'revert'
     revert_parser = subparsers.add_parser(

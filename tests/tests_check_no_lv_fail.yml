@@ -44,7 +44,7 @@
               snapshot_lvm_verify_only: true
               snapshot_lvm_action: check
       always:
-        - name: Clean up storage volumes
+        - name: Remove storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:

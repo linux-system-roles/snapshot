@@ -46,7 +46,7 @@
                     lv: lv1
                     percent_space_required: 50
       always:
-        - name: Clean up storage volumes
+        - name: Remove storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:
