@@ -3,7 +3,7 @@
 - name: Example snapshot role invocation
   hosts: all
   vars:
-    snapshot_lvm_action: clean
+    snapshot_lvm_action: remove
     snapshot_lvm_prefix: a_
     snapshot_lvm_suffix: _z
     snapshot_lvm_all_vgs: true

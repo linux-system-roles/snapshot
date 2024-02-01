@@ -1,5 +1,5 @@
 ---
-- name: Verify snapshot clean is completed
+- name: Verify snapshot remove is completed
   ansible.builtin.script: "{{ __snapshot_cmd }}"
   args:
     executable: "{{ __snapshot_python }}"

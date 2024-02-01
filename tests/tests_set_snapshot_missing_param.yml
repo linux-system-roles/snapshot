@@ -47,7 +47,7 @@
                     vg: test_vg1
                     lv: lv1
       always:
-        - name: Clean up storage volumes
+        - name: Remove storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:

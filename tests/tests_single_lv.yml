@@ -84,10 +84,10 @@
             snapshot_lvm_prefix: a_
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_action: clean
+            snapshot_lvm_action: remove
 
         - name: >-
-            Use the snapshot_lvm_verify_only option to make sure cleanup is done
+            Use the snapshot_lvm_verify_only option to make sure remove is done
           include_role:
             name: linux-system-roles.snapshot
           vars:
@@ -96,9 +96,9 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_action: clean
+            snapshot_lvm_action: remove
       always:
-        - name: Clean up storage volumes
+        - name: Remove up storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:

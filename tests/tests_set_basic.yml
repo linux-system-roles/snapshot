@@ -89,22 +89,22 @@
             snapshot_lvm_set: "{{ snapshot_test_set }}"
             snapshot_lvm_verify_only: true
 
-        - name: Run the snapshot role cleanup the set
+        - name: Run the snapshot role remove the set
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_action: clean
+            snapshot_lvm_action: remove
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
         - name: Run the snapshot role to verify the set is removed
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_action: clean
+            snapshot_lvm_action: remove
             snapshot_lvm_set: "{{ snapshot_test_set }}"
             snapshot_lvm_verify_only: true
       always:
-        - name: Clean up storage volumes
+        - name: Remove storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:

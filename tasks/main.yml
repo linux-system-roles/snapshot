@@ -22,13 +22,13 @@
   ansible.builtin.include_tasks: snapshot.yml
   when: snapshot_lvm_action == "snapshot"
 
-- name: Cleanup Previous Snapshots
-  ansible.builtin.include_tasks: cleanup.yml
-  when: snapshot_lvm_action == "clean" and not snapshot_lvm_verify_only
+- name: Remove Snapshots
+  ansible.builtin.include_tasks: remove.yml
+  when: snapshot_lvm_action == "remove" and not snapshot_lvm_verify_only
 
-- name: Verify Cleanup
-  ansible.builtin.include_tasks: verify_cleanup.yml
-  when: snapshot_lvm_action == "clean" and snapshot_lvm_verify_only
+- name: Verify Remove
+  ansible.builtin.include_tasks: verify_remove.yml
+  when: snapshot_lvm_action == "remove" and snapshot_lvm_verify_only
 
 - name: Revert to Snapshot
   ansible.builtin.include_tasks: revert.yml

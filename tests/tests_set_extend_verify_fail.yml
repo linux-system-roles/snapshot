@@ -72,7 +72,7 @@
               __snapshot_lvm_set: "{{ snapshot_test_verify_set }}"
 
       always:
-        - name: Clean up storage volumes
+        - name: Remove storage volumes
           include_role:
             name: fedora.linux_system_roles.storage
           vars:

@@ -33,7 +33,7 @@ This variable is required. It supports one of the following values:
 
 - `check`: Validate that snapshot names don't have conflicts and there is sufficient space to take the snapshots
 
-- `clean`: Remove snapshots that conform to the specified prefix and pattern
+- `remove`: Remove snapshots that conform to the specified prefix and pattern
 
 - `revert`: Revert to snapshots that are specifed by either the pattern or set.  If either the source LV or
             snapshot are open, the merge is deferred until the next time the server reboots and the
@@ -151,12 +151,12 @@ volume group.
 
 ### snapshot_lvm_verify_only
 
-If true, the check and clean commands verify that the system is in the correct state.
-For the clean command, the target system will be searched for any snapshots that would
-be removed by the clean command without snapshot_lvm_verify_only.
+If true, the check and remove commands verify that the system is in the correct state.
+For the remove command, the target system will be searched for any snapshots that would
+be removed by the remove command without snapshot_lvm_verify_only.
 
 snapshot_lvm_verify_only is intended to be used to double check that the snapshot or
-clean command have completed the operation correctly.
+remove command have completed the operation correctly.
 
 ## rpm-ostree
 
