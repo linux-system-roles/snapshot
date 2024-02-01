@@ -192,7 +192,7 @@ values:</p>
 VGs/LVs</p></li>
 <li><p><code>check</code>: Validate that snapshot names don't have
 conflicts and there is sufficient space to take the snapshots</p></li>
-<li><p><code>clean</code>: Remove snapshots that conform to the
+<li><p><code>remove</code>: Remove snapshots that conform to the
 specified prefix and pattern</p></li>
 <li><p><code>revert</code>: Revert to snapshots that are specifed by
 either the pattern or set. If either the source LV or snapshot are open,
@@ -289,12 +289,12 @@ required.</p>
 in the volume group specified by snapshot_lvm_vg. The parameter requires
 snapshot_lvm_vg is set to a valid volume group.</p>
 <h2 id="snapshot_lvm_verify_only">snapshot_lvm_verify_only</h2>
-<p>If true, the check and clean commands verify that the system is in
-the correct state. For the clean command, the target system will be
-searched for any snapshots that would be removed by the clean command
+<p>If true, the check and remove commands verify that the system is in
+the correct state. For the remove command, the target system will be
+searched for any snapshots that would be removed by the remove command
 without snapshot_lvm_verify_only.</p>
 <p>snapshot_lvm_verify_only is intended to be used to double check that
-the snapshot or clean command have completed the operation
+the snapshot or remove command have completed the operation
 correctly.</p>
 <h1 id="rpm-ostree">rpm-ostree</h1>
 <p>See README-ostree.md</p>
