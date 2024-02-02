@@ -977,7 +977,7 @@ def remove_snapshot_set(snapset_json):
 
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, "failed to get LV status"
 
         # if there is no snapshot, continue (idempotent)
         if not vg_exists or not lv_exists:
@@ -1328,7 +1328,6 @@ def snapshot_precheck_lv_set_space(snapset_json):
 # precheck the set to make sure it will work and create snapshots for
 # the source LVs in the set
 def snapshot_precheck_lv_set(snapset_json):
-
     rc, message = verify_snapset_source_lvs_exist(snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message, None
