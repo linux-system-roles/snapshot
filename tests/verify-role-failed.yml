@@ -16,11 +16,8 @@
         snapshot_lvm_all_vgs: "{{
           __snapshot_failed_params.get('snapshot_all')
           }}"
-        snapshot_lvm_suffix: "{{
-          __snapshot_failed_params.get('snapshot_lvm_suffix')
-          }}"
-        snapshot_lvm_prefix: "{{
-          __snapshot_failed_params.get('snapshot_lvm_prefix')
+        snapshot_lvm_snapset_name: "{{
+          __snapshot_failed_params.get('snapshot_lvm_snapset_name')
           }}"
         snapshot_lvm_action: "{{
           __snapshot_failed_params.get('snapshot_lvm_action')

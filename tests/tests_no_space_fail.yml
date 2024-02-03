@@ -38,8 +38,7 @@
             __snapshot_failed_params:
               snapshot_lvm_percent_space_required: 15
               snapshot_all: true
-              snapshot_lvm_suffix: _z
-              snapshot_lvm_prefix: a_
+              snapshot_lvm_snapset_name: snapset1
               snapshot_lvm_action: snapshot
       always:
         - name: Remove storage volumes

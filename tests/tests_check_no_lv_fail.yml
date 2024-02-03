@@ -39,8 +39,7 @@
             __snapshot_failed_params:
               snapshot_lvm_vg: test_vg1
               snapshot_lvm_lv: xxxxx
-              snapshot_lvm_suffix: _z
-              snapshot_lvm_prefix: a_
+              snapshot_lvm_snapset_name: snapset1
               snapshot_lvm_verify_only: true
               snapshot_lvm_action: check
       always:

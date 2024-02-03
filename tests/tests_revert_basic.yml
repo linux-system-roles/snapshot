@@ -60,8 +60,7 @@
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_all_vgs: true
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
+            snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
 
         - name: Verify the snapshot LVs are created
@@ -69,8 +68,7 @@
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_all_vgs: true
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
+            snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
 
@@ -79,8 +77,7 @@
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_all_vgs: true
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
+            snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: revert
 
         - name: Use the snapshot_lvm_verify option to make sure revert is done
@@ -88,8 +85,7 @@
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_all_vgs: true
-            snapshot_lvm_suffix: _z
-            snapshot_lvm_prefix: a_
+            snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: revert
       always:

@@ -69,15 +69,11 @@ Sets are defined in the following format:
 
 If before running the role, with :
 
-### snapshot_lvm_prefix
+### snapshot_lvm_snapset_name
 
-This variable is required if not using sets. snapshot_lvm_prefix is a string that will be
-prepended to the name of the LV when the snapshot is created.
-
-### snapshot_lvm_suffix
-
-This variable is required if not using sets. snapshot_lvm_prefix is a string that will be
-appended to the name of the LV when the snapshot is created.
+This variable is required. snapshot_lvm_snapset_name is a string that will be
+appended to the name of the LV when the snapshot set is created.  It will be used
+to identify members of the set.
 
 If before running the role, the following LVs exist:
 
@@ -94,29 +90,29 @@ lv1_vg3 vg3  -wi-a-----   1.00g
 lv3_vg3 vg3  -wi-a----- 120.00m
 ```
 
-If the prefix is set to "a_" and the suffix is set to "_z", running the role will result
+If snapshot_lvm_snapset_name is set to "_snapset1", running the role will result
 in the following:
 
 ```text
-LV          VG   Attr       LSize   Pool Origin  Data%  Meta%  Move Log Cpy%Sync Convert
-a_home_z    rhel swi-a-s--- 104.00m      home    0.00
-a_root_z    rhel swi-a-s---   3.50g      root    0.01
-a_swap_z    rhel swi-a-s--- 400.00m      swap    0.00
-home        rhel owi-aos---   1.00g
-root        rhel owi-aos---  35.00g
-swap        rhel owi-aos---  <3.88g
-a_lv1_vg1_z vg1  swi-a-s--- 104.00m      lv1_vg1 0.00
-a_lv2_vg1_z vg1  swi-a-s---   8.00m      lv2_vg1 0.00
-lv1_vg1     vg1  owi-a-s---   1.00g
-lv2_vg1     vg1  owi-a-s---  40.00m
-a_lv1_vg2_z vg2  swi-a-s--- 104.00m      lv1_vg2 0.00
-a_lv2_vg2_z vg2  swi-a-s---  12.00m      lv2_vg2 0.00
-lv1_vg2     vg2  owi-a-s---   1.00g
-lv2_vg2     vg2  owi-a-s---  80.00m
-a_lv1_vg3_z vg3  swi-a-s--- 104.00m      lv1_vg3 0.00
-a_lv3_vg3_z vg3  swi-a-s---  16.00m      lv3_vg3 0.00
-lv1_vg3     vg3  owi-a-s---   1.00g
-lv3_vg3     vg3  owi-a-s--- 120.00m
+LV               VG   Attr       LSize   Pool Origin  Data%  Meta%  Move Log Cpy%Sync Convert
+home_snapset1    rhel swi-a-s--- 104.00m      home    0.00
+root_snapset1    rhel swi-a-s---   3.50g      root    0.01
+swap_snapset1    rhel swi-a-s--- 400.00m      swap    0.00
+home             rhel owi-aos---   1.00g
+root             rhel owi-aos---  35.00g
+swap             rhel owi-aos---  <3.88g
+lv1_vg1_snapset1 vg1  swi-a-s--- 104.00m      lv1_vg1 0.00
+lv2_vg1_snapset1 vg1  swi-a-s---   8.00m      lv2_vg1 0.00
+lv1_vg1          vg1  owi-a-s---   1.00g
+lv2_vg1          vg1  owi-a-s---  40.00m
+lv1_vg2_snapset1 vg2  swi-a-s--- 104.00m      lv1_vg2 0.00
+lv2_vg2_snapset1 vg2  swi-a-s---  12.00m      lv2_vg2 0.00
+lv1_vg2          vg2  owi-a-s---   1.00g
+lv2_vg2          vg2  owi-a-s---  80.00m
+lv1_vg3_snapset1 vg3  swi-a-s--- 104.00m      lv1_vg3 0.00
+lv3_vg3_snapset1 vg3  swi-a-s---  16.00m      lv3_vg3 0.00
+lv1_vg3          vg3  owi-a-s---   1.00g
+lv3_vg3          vg3  owi-a-s--- 120.00m
 ```
 
 ### snapshot_lvm_percent_space_required

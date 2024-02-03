@@ -7,7 +7,6 @@ snapshot_lvm_all_vgs: false
 snapshot_lvm_verify_only: false
 snapshot_lvm_vg: ''
 snapshot_lvm_lv: ''
-snapshot_lvm_prefix: ''
-snapshot_lvm_suffix: ''
+snapshot_lvm_snapset_name: ''
 snapshot_lvm_percent_space_required: ''
 snapshot_lvm_set: ''

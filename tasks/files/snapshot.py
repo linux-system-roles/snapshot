@@ -213,7 +213,7 @@ def get_snapshot_name(lv_name, prefix, suffix):
     else:
         suffix_str = ""
 
-    return prefix_str + lv_name + suffix_str
+    return prefix_str + lv_name + "_" + suffix_str
 
 
 def lvm_lv_exists(vg_name, lv_name):
@@ -493,7 +493,7 @@ def extend_snapshot_set(snapset_json):
         percent_space_required = list_item["percent_space_required"]
 
         rc, message = extend_lv_snapshot(
-            vg, lv, None, get_snapset_suffix(snapset_name), percent_space_required
+            vg, lv, None, snapset_name, percent_space_required
         )
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -513,7 +513,7 @@ def extend_verify_snapshot_set(snapset_json):
         lv = list_item["lv"]
         percent_space_required = list_item["percent_space_required"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -815,7 +815,7 @@ def check_verify_lvs_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -933,7 +933,8 @@ def revert_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        rc, message = revert_lv(vg, lv, None, get_snapset_suffix(snapset_name))
+        rc, message = revert_lv(
+            vg, lv, None, get_snapshot_name(lv, None, snapset_name))
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message
@@ -950,7 +951,7 @@ def remove_snapshot_set(snapset_json):
     for list_item in volume_list:
         vg = list_item["vg"]
         lv = list_item["lv"]
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
 
@@ -973,7 +974,7 @@ def remove_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -1001,7 +1002,7 @@ def remove_verify_snapshot_set(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -1211,7 +1212,7 @@ def verify_snapset_target_no_existing(snapset_json):
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        snapshot_name = get_snapshot_name(lv, None, get_snapset_suffix(snapset_name))
+        snapshot_name = get_snapshot_name(lv, None, snapset_name)
 
         rc, _vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -1259,10 +1260,6 @@ def verify_snapset_source_lvs_exist(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def get_snapset_suffix(snapset_name):
-    return "_" + snapset_name
-
-
 def verify_snapset_names(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
@@ -1270,9 +1267,7 @@ def verify_snapset_names(snapset_json):
     for list_item in volume_list:
         lv = list_item["lv"]
 
-        rc, message = check_name_for_snapshot(
-            lv, None, get_snapset_suffix(snapset_name)
-        )
+        rc, message = check_name_for_snapshot(lv, None, snapset_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message
 
@@ -1379,9 +1374,7 @@ def snapshot_create_set(snapset_json):
             vg, lv, percent_space_required, current_space_dict
         )
 
-        rc, message = snapshot_lv(
-            vg, lv, None, get_snapset_suffix(snapset_name), required_size
-        )
+        rc, message = snapshot_lv(vg, lv, None, snapset_name, required_size)
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message
 
@@ -1861,10 +1854,10 @@ if __name__ == "__main__":
     )
     common_parser.add_argument(
         "-s",
-        "--suffix",
+        "--snapset",
         dest="suffix",
         type=str,
-        help="suffix to add to volume name for snapshot",
+        help="name for snapshot set",
     )
     common_parser.add_argument(
         "-p",
