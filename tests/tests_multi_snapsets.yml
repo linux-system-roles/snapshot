@@ -1,5 +1,5 @@
 ---
-- name: Single VG snapshot test
+- name: Basic snapshot test
   hosts: all
   tasks:
     - name: Run tests
@@ -54,40 +54,70 @@
                   - name: lv8
                     size: "10%"
 
-        - name: Run the snapshot role to create snapshot of single LV
+        - name: Run the snapshot role to create snapshot LVs for snapset1
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_vg: test_vg1
             snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_vg: test_vg2
             snapshot_lvm_action: snapshot
 
-        - name: Verify the snapshot LV is created
+        - name: Verify the snapshot LVs are createdf or snapset1
           include_role:
             name: linux-system-roles.snapshot
           vars:
+            snapshot_lvm_vg: test_vg1
             snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_vg: test_vg2
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
 
-        - name: Run the snapshot role remove the snapshot for single LV
+        - name: Run the snapshot role to create snapshot LVs for snapset2
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_vg: test_vg2
+            snapshot_lvm_snapset_name: snapset2
+            snapshot_lvm_action: snapshot
+
+        - name: Verify the snapshot LVs are createdf or snapset2
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_vg: test_vg2
+            snapshot_lvm_snapset_name: snapset2
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Run the snapshot role remove the snapshot LVs for snapset1
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_vg: test_vg1
             snapshot_lvm_action: remove
 
-        - name: >-
-            Use the snapshot_lvm_verify_only option to make sure remove is done
+        - name: Use the snapshot_lvm_verify option to make sure remove is done
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
-            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_action: remove
+
+        - name: Run the snapshot role remove the snapshot LVs for snapset2
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset2
+            snapshot_lvm_action: remove
+
+        - name: Use the snapshot_lvm_verify option to make sure remove is done
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset2
+            snapshot_lvm_verify_only: true
             snapshot_lvm_action: remove
       always:
         - name: Remove storage volumes
