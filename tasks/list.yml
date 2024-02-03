@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+- name: List snapshots
+  ansible.builtin.script: "{{ __snapshot_cmd }}"
+  args:
+    executable: "{{ __snapshot_python }}"
+  register: snapshot_cmd
+
+- name: Print out response
+  debug:
+    var: snapshot_cmd.stdout
+    verbosity: 2
+
+- name: Set snapshot_facts to the JSON results
+  set_fact:
+    snapshot_facts: "{{ snapshot_cmd.stdout | from_json }}"
