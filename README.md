@@ -73,7 +73,9 @@ If before running the role, with :
 
 This variable is required. snapshot_lvm_snapset_name is a string that will be
 appended to the name of the LV when the snapshot set is created.  It will be used
-to identify members of the set.
+to identify members of the set.  It must be at least one character long and contain
+valid characters for use in an LVM volume name. A to Z, a to z, 0 to 9, underscore (_),
+hyphen (-), dot (.), and plus (+) are valid characters.
 
 If before running the role, the following LVs exist:
 
@@ -151,6 +153,280 @@ be removed by the remove command without snapshot_lvm_verify_only.
 
 snapshot_lvm_verify_only is intended to be used to double check that the snapshot or
 remove command have completed the operation correctly.
+
+### Variables Exported by the Role
+
+#### snapshot_facts
+
+Contains volume and mount point information for a given snapset.
+
+For example:
+
+```json
+{
+    "volumes": {
+        "vg3": [
+            {
+                "lv_uuid": "VY7oRQ-zB1q-DzsP-1y7G-J3gL-ci1e-nQXwAy",
+                "lv_name": "lv1_vg3",
+                "lv_full_name": "vg3/lv1_vg3",
+                "lv_path": "/dev/vg3/lv1_vg3",
+                "lv_size": "1073741824",
+                "origin": "",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg3",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "Yhn7RG-k7pM-ylf9-NNt8-xuGI-WwrF-i0Pf6T",
+                "lv_name": "lv1_vg3_snapset2",
+                "lv_full_name": "vg3/lv1_vg3_snapset2",
+                "lv_path": "/dev/vg3/lv1_vg3_snapset2",
+                "lv_size": "322961408",
+                "origin": "lv1_vg3",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-a-s---",
+                "vg_name": "vg3",
+                "data_percent": "0.00",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "NlwbxX-NhwK-IHTj-sV9k-ldZY-Twvj-2SiCVe",
+                "lv_name": "lv2_vg3",
+                "lv_full_name": "vg3/lv2_vg3",
+                "lv_path": "/dev/vg3/lv2_vg3",
+                "lv_size": "1073741824",
+                "origin": "",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg3",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "j0RCzX-OVaA-MGDw-ejHO-Eu35-f4yG-VJL2Kr",
+                "lv_name": "lv2_vg3_snapset2",
+                "lv_full_name": "vg3/lv2_vg3_snapset2",
+                "lv_path": "/dev/vg3/lv2_vg3_snapset2",
+                "lv_size": "322961408",
+                "origin": "lv2_vg3",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-aos---",
+                "vg_name": "vg3",
+                "data_percent": "0.66",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "8kfTDY-22SL-4tC7-vTsR-1R63-zVzq-55qEL3",
+                "lv_name": "lv3_vg3",
+                "lv_full_name": "vg3/lv3_vg3",
+                "lv_path": "/dev/vg3/lv3_vg3",
+                "lv_size": "125829120",
+                "origin": "",
+                "origin_size": "125829120",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg3",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "babChm-IzEN-Pf8q-1dxk-BJ9R-3kZb-u91utS",
+                "lv_name": "lv3_vg3_snapset2",
+                "lv_full_name": "vg3/lv3_vg3_snapset2",
+                "lv_path": "/dev/vg3/lv3_vg3_snapset2",
+                "lv_size": "41943040",
+                "origin": "lv3_vg3",
+                "origin_size": "125829120",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-a-s---",
+                "vg_name": "vg3",
+                "data_percent": "0.00",
+                "metadata_percent": ""
+            }
+        ],
+        "vg2": [
+            {
+                "lv_uuid": "8uMuRW-1KCV-8FTJ-frhX-X39o-V15B-1uEC98",
+                "lv_name": "lv1_vg2",
+                "lv_full_name": "vg2/lv1_vg2",
+                "lv_path": "/dev/vg2/lv1_vg2",
+                "lv_size": "1073741824",
+                "origin": "",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg2",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "GGssIK-SHYI-to1m-MhVL-2BDk-PJ8X-dBnL7G",
+                "lv_name": "lv1_vg2_snapset2",
+                "lv_full_name": "vg2/lv1_vg2_snapset2",
+                "lv_path": "/dev/vg2/lv1_vg2_snapset2",
+                "lv_size": "322961408",
+                "origin": "lv1_vg2",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-aos---",
+                "vg_name": "vg2",
+                "data_percent": "20.97",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "83A9VM-kVEy-sc60-kF14-gKGb-5Ryj-7yDyEG",
+                "lv_name": "lv2_vg2",
+                "lv_full_name": "vg2/lv2_vg2",
+                "lv_path": "/dev/vg2/lv2_vg2",
+                "lv_size": "83886080",
+                "origin": "",
+                "origin_size": "83886080",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg2",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "6tVL8A-U1x1-qqUt-WFVG-POsG-msFs-ZbbPq1",
+                "lv_name": "lv2_vg2_snapset2",
+                "lv_full_name": "vg2/lv2_vg2_snapset2",
+                "lv_path": "/dev/vg2/lv2_vg2_snapset2",
+                "lv_size": "29360128",
+                "origin": "lv2_vg2",
+                "origin_size": "83886080",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-a-s---",
+                "vg_name": "vg2",
+                "data_percent": "0.00",
+                "metadata_percent": ""
+            }
+        ],
+        "vg1": [
+            {
+                "lv_uuid": "UnN0s0-TauJ-csnN-BgC1-3ocI-p8bE-jz0Hd8",
+                "lv_name": "lv1_vg1",
+                "lv_full_name": "vg1/lv1_vg1",
+                "lv_path": "/dev/vg1/lv1_vg1",
+                "lv_size": "1073741824",
+                "origin": "",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-aos---",
+                "vg_name": "vg1",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "5Np7N9-H15x-Go96-fIwL-E0GR-4fVB-clLDW2",
+                "lv_name": "lv1_vg1_snapset2",
+                "lv_full_name": "vg1/lv1_vg1_snapset2",
+                "lv_path": "/dev/vg1/lv1_vg1_snapset2",
+                "lv_size": "322961408",
+                "origin": "lv1_vg1",
+                "origin_size": "1073741824",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-a-s---",
+                "vg_name": "vg1",
+                "data_percent": "20.97",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "P0LPUQ-CljS-hOEm-U749-yyr9-USE7-1qDc2N",
+                "lv_name": "lv2_vg1",
+                "lv_full_name": "vg1/lv2_vg1",
+                "lv_path": "/dev/vg1/lv2_vg1",
+                "lv_size": "41943040",
+                "origin": "",
+                "origin_size": "41943040",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "owi-a-s---",
+                "vg_name": "vg1",
+                "data_percent": "",
+                "metadata_percent": ""
+            },
+            {
+                "lv_uuid": "FYIBRe-FDiW-PDUE-3l1y-mLzN-bLEg-qF12cz",
+                "lv_name": "lv2_vg1_snapset2",
+                "lv_full_name": "vg1/lv2_vg1_snapset2",
+                "lv_path": "/dev/vg1/lv2_vg1_snapset2",
+                "lv_size": "16777216",
+                "origin": "lv2_vg1",
+                "origin_size": "41943040",
+                "pool_lv": "",
+                "lv_tags": "",
+                "lv_attr": "swi-a-s---",
+                "vg_name": "vg1",
+                "data_percent": "0.00",
+                "metadata_percent": ""
+            }
+        ]
+    },
+    "mounts": {
+        "/dev/vg3/lv1_vg3": null,
+        "/dev/vg3/lv1_vg3_snapset2": [
+            {
+                "TARGET": "/mnt/database",
+                "SOURCE": "/dev/mapper/vg3-lv1_vg3_snapset2",
+                "FSTYPE": "xfs",
+                "OPTIONS": "rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota"
+            }
+        ],
+        "/dev/vg3/lv2_vg3": null,
+        "/dev/vg3/lv2_vg3_snapset2": null,
+        "/dev/vg3/lv3_vg3": null,
+        "/dev/vg3/lv3_vg3_snapset2": null,
+        "/dev/vg2/lv1_vg2": null,
+        "/dev/vg2/lv1_vg2_snapset2": [
+            {
+                "TARGET": "/mnt/production_mnt",
+                "SOURCE": "/dev/mapper/vg2-lv1_vg2_snapset2",
+                "FSTYPE": "xfs",
+                "OPTIONS": "rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota"
+            }
+        ],
+        "/dev/vg2/lv2_vg2": null,
+        "/dev/vg2/lv2_vg2_snapset2": null,
+        "/dev/vg1/lv1_vg1": null,
+        "/dev/vg1/lv1_vg1_snapset2": [
+            {
+                "TARGET": "/mnt/new_mountpoint",
+                "SOURCE": "/dev/mapper/vg1-lv1_vg1_snapset2",
+                "FSTYPE": "xfs",
+                "OPTIONS": "rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota"
+            },
+            {
+                "TARGET": "/mnt/other_mp",
+                "SOURCE": "/dev/mapper/vg1-lv1_vg1_snapset2",
+                "FSTYPE": "xfs",
+                "OPTIONS": "rw,relatime,seclabel,attr2,inode64,logbufs=8,logbsize=32k,noquota"
+            }
+        ],
+        "/dev/vg1/lv2_vg1": null,
+        "/dev/vg1/lv2_vg1_snapset2": null
+    }
+}
+```
 
 ## rpm-ostree
 

@@ -34,6 +34,10 @@
   ansible.builtin.include_tasks: revert.yml
   when: snapshot_lvm_action == "revert"
 
+- name: List Snapshot Attributes
+  ansible.builtin.include_tasks: list.yml
+  when: snapshot_lvm_action == "list"
+
 - name: Extend Snapshots
   ansible.builtin.include_tasks: extend.yml
   when: snapshot_lvm_action == "extend"
