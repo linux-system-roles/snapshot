@@ -19,6 +19,9 @@
         snapshot_lvm_snapset_name: "{{
           __snapshot_failed_params.get('snapshot_lvm_snapset_name')
           }}"
+        snapshot_lvm_set: "{{
+          __snapshot_failed_params.get('__snapshot_lvm_set')
+          }}"
         snapshot_lvm_action: "{{
           __snapshot_failed_params.get('snapshot_lvm_action')
           }}"
@@ -31,8 +34,20 @@
         snapshot_lvm_lv: "{{
           __snapshot_failed_params.get('snapshot_lvm_lv')
           }}"
-        snapshot_lvm_set: "{{
-          __snapshot_failed_params.get('__snapshot_lvm_set')
+        snapshot_lvm_mount_origin: "{{
+          __snapshot_failed_params.get('snapshot_lvm_mount_origin')
+          }}"
+        snapshot_lvm_mountpoint_create: "{{
+          __snapshot_failed_params.get('snapshot_lvm_mountpoint_create')
+          }}"
+        snapshot_lvm_unmount_all: "{{
+          __snapshot_failed_params.get('snapshot_lvm_unmount_all')
+          }}"
+        snapshot_lvm_mountpoint: "{{
+          __snapshot_failed_params.get('snapshot_lvm_mountpoint')
+          }}"
+        snapshot_lvm_mount_options: "{{
+          __snapshot_failed_params.get('snapshot_lvm_mount_options')
           }}"
     - name: Unreachable task
       fail:

@@ -5,8 +5,13 @@
 
 snapshot_lvm_all_vgs: false
 snapshot_lvm_verify_only: false
+snapshot_lvm_mount_origin: false
+snapshot_lvm_mountpoint_create: false
+snapshot_lvm_unmount_all: false
 snapshot_lvm_vg: ''
 snapshot_lvm_lv: ''
 snapshot_lvm_snapset_name: ''
 snapshot_lvm_percent_space_required: ''
 snapshot_lvm_set: ''
+snapshot_lvm_mountpoint: ''
+snapshot_lvm_mount_options: ''

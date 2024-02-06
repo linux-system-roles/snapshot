@@ -45,27 +45,68 @@ This variable is required. It supports one of the following values:
 The snapshot role supports sets of volumes.  Sets may contain any number of volumes.
 Sets are defined in the following format:
 
-```text
+```yaml
     snapshot_lvm_set:
       name: snapset1
       volumes:
         - name: snapshot VG1 LV1
           vg: test_vg1
           lv: lv1
-          percent_space_required: 20
-        - name: snapshot VG1 LV1
-          vg: test_vg2
-          lv: lv1
-          percent_space_required: 25
+          percent_space_required: 15
+          mountpoint: /mnt/lv1_mp
         - name: snapshot VG2 LV3
           vg: test_vg2
           lv: lv3
+          mountpoint: /mnt/lv3_mp
+          percent_space_required: 15
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          mountpoint: /mnt/lv4_mp
           percent_space_required: 15
         - name: snapshot VG3 LV7
           vg: test_vg3
           lv: lv7
+          mountpoint: /mnt/lv7_mp
           percent_space_required: 15
 ```
+
+If the user is indicating the mount action and wants the origin of the snapshot to be mounted rather
+than the snapshot, the set would be defined with the additional field "mount_origin" for any entry
+that it applies, for example:
+
+```yaml
+    snapshot_lvm_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 15
+          mountpoint: /mnt/lv1_mp
+          mount_origin: false
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          mountpoint: /mnt/lv3_mp
+          percent_space_required: 15
+          mount_origin: true
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          mountpoint: /mnt/lv4_mp
+          percent_space_required: 15
+          mount_origin: false
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          mountpoint: /mnt/lv7_mp
+          percent_space_required: 15
+          mount_origin: true
+```
+
+The mount_origin flag defaults to false, so it is not necessary when the user is mounting the
+snapshot rather than the origin.
 
 If before running the role, with :
 
@@ -75,7 +116,8 @@ This variable is required. snapshot_lvm_snapset_name is a string that will be
 appended to the name of the LV when the snapshot set is created.  It will be used
 to identify members of the set.  It must be at least one character long and contain
 valid characters for use in an LVM volume name. A to Z, a to z, 0 to 9, underscore (_),
-hyphen (-), dot (.), and plus (+) are valid characters.
+hyphen (-), dot (.), and plus (+) are valid characters.  When used inside of a snapset
+definition, use name parameter.
 
 If before running the role, the following LVs exist:
 
@@ -123,27 +165,30 @@ This is required for check and snapshot actions if not using sets.
 
 See the LVM man page for lvcreate with the -s (snapshot) and -L (size) options.
 The snapshot role will ensure that there is at least snapshot_lvm_percent_space_required
-space available in the VG.
+space available in the VG. When used inside of a snapset definition, use
+percent_space_required parameter.
 
 Note: LVM will round up size to full physical extent
 
 ### snapshot_lvm_all_vgs
 
 This is a boolean value with default false.  If true the role will snapshot
-all VGs on the target system.  If false, the snapshot_lvm_vg must be set.
+all VGs on the target system.  If false, the snapshot_lvm_vg or snapshot_lvm_set
+must be set.
 
 ### snapshot_lvm_vg
 
 If set, the role will create snapshots for all the logical volumes in the volume group.
 If snapshot_lvm_lv is also set, a snapshot will be created for only that logical volume
 in the volume group. If neither snapshot_lvm_all_vgs or snapshot_lvm_set are set,
-snapshot_lvm_vg is required.
+snapshot_lvm_vg is required. When used inside of a snapset definition, use
+vg parameter.
 
 ### snapshot_lvm_lv
 
 If set, the role will create snapshots for the single logical volume in the volume group
 specified by snapshot_lvm_vg.  The parameter requires snapshot_lvm_vg is set to a valid
-volume group.
+volume group. When used inside of a snapset definition, use lv parameter.
 
 ### snapshot_lvm_verify_only
 
@@ -153,6 +198,28 @@ be removed by the remove command without snapshot_lvm_verify_only.
 
 snapshot_lvm_verify_only is intended to be used to double check that the snapshot or
 remove command have completed the operation correctly.
+
+### snapshot_lvm_mountpoint_create
+
+If the mount point specified doesn't currently exist, create the mount point and any
+parent directories necessary for the mount point. When used inside of a snapset definition,
+use mountpoint_create parameter.
+
+### snapshot_lvm_mountpoint
+
+The mount target for the block device. When used inside of a snapset definition,
+use mountpoint parameter.
+
+### snapshot_lvm_mount_origin
+
+If set to true, mount the origin of the snapshot rather than the snapshot.
+When used inside of a snapset definition, use mount_origin parameter.
+
+### snapshot_lvm_unmount_all
+
+If set to true, unmount all mountpoint for the resulting blockdevice.
+Linux allows filesytems to be mounted in multiple locations.  Setting
+this flag will unmount all locations.
 
 ### Variables Exported by the Role
 
