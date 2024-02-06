@@ -1,5 +1,5 @@
 ---
-- name: Basic list snapshot test
+- name: Verify mount action fails with wrong mount point
   hosts: all
   tasks:
     - name: Run tests
@@ -14,13 +14,9 @@
             min_size: "1g"
             min_return: 10
 
-        - name: Set disk lists
+        - name: Set disk list
           set_fact:
             disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
-              list }}"
-            disk_list_2: "{{ range(3, 6) | map('extract', unused_disks) |
-              list }}"
-            disk_list_3: "{{ range(6, 10) | map('extract', unused_disks) |
               list }}"
 
         - name: Create LVM logical volumes under volume groups
@@ -32,29 +28,10 @@
                 disks: "{{ disk_list_1 }}"
                 volumes:
                   - name: lv1
-                    size: "15%"
-                  - name: lv2
                     size: "50%"
-              - name: test_vg2
-                disks: "{{ disk_list_2 }}"
-                volumes:
-                  - name: lv3
-                    size: "10%"
-                  - name: lv4
-                    size: "20%"
-              - name: test_vg3
-                disks: "{{ disk_list_3 }}"
-                volumes:
-                  - name: lv5
-                    size: "30%"
-                  - name: lv6
-                    size: "25%"
-                  - name: lv7
-                    size: "10%"
-                  - name: lv8
-                    size: "10%"
+                    fs_type: xfs
 
-        - name: Run the snapshot role to create snapshot LVs
+        - name: Create snapshot for LV
           include_role:
             name: linux-system-roles.snapshot
           vars:
@@ -63,23 +40,52 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
 
-        - name: Verify the snapshot LVs are created
+        - name: Mount the snapshot for LV
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: /mnt/lv1_mp
+            snapshot_lvm_mountpoint_create: true
+
+        - name: Verify snapshot is mounted for lv1
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: /mnt/lv1_mp
             snapshot_lvm_verify_only: true
-            snapshot_lvm_action: check
 
-        - name: List
+        - name: Test failure of verifying wrong mount
+          include_tasks: verify-role-failed.yml
+          vars:
+            __snapshot_failed_regex: blockdev not mounted on specified*
+            __snapshot_failed_msg: Role did not fail with not mounted error
+            __snapshot_failed_params:
+              snapshot_lvm_snapset_name: snapset1
+              snapshot_lvm_action: mount
+              snapshot_lvm_vg: test_vg1
+              snapshot_lvm_lv: lv1
+              snapshot_lvm_mountpoint: /mnt/wrong_mountpoint
+              snapshot_lvm_verify_only: true
+
+        - name: Umount the snapshot for lv1
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_action: list
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: /mnt/lv1_mp
 
-        - name: Run the snapshot role remove the snapshot LVs
+        - name: Remove the snapshot LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
@@ -93,6 +99,7 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: remove
+
       always:
         - name: Remove storage volumes
           include_role:
@@ -105,26 +112,4 @@
                 state: absent
                 volumes:
                   - name: lv1
-                    state: absent
-                  - name: lv2
-                    state: absent
-              - name: test_vg2
-                disks: "{{ disk_list_2 }}"
-                state: absent
-                volumes:
-                  - name: lv3
-                    state: absent
-                  - name: lv4
-                    state: absent
-              - name: test_vg3
-                disks: "{{ disk_list_3 }}"
-                state: absent
-                volumes:
-                  - name: lv5
-                    state: absent
-                  - name: lv6
-                    state: absent
-                  - name: lv7
-                    state: absent
-                  - name: lv8
                     state: absent

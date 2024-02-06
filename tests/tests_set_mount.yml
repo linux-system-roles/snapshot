@@ -1,6 +1,36 @@
 ---
-- name: Basic list snapshot test
+- name: Mount snapshots of logical volumes across different volume groups
   hosts: all
+  vars:
+    snapshot_test_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          mountpoint: /mnt/lv1_mp
+          percent_space_required: 15
+          mountpoint_create: true
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          mountpoint: /mnt/lv3_mp
+          percent_space_required: 15
+          mountpoint_create: true
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          mountpoint: /mnt/lv4_mp
+          percent_space_required: 15
+          mountpoint_create: true
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          mountpoint: /mnt/lv7_mp
+          percent_space_required: 15
+          mountpoint_create: true
+
+
   tasks:
     - name: Run tests
       block:
@@ -54,45 +84,37 @@
                   - name: lv8
                     size: "10%"
 
-        - name: Run the snapshot role to create snapshot LVs
+        - name: Run the snapshot role to create a snapshot set of LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 15
-            snapshot_lvm_all_vgs: true
-            snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
 
-        - name: Verify the snapshot LVs are created
+        - name: Verify the set of snapshots for the LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_all_vgs: true
-            snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
-
-        - name: List
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_action: list
-
-        - name: Run the snapshot role remove the snapshot LVs
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_snapset_name: snapset1
-            snapshot_lvm_action: remove
-
-        - name: Use the snapshot_lvm_verify option to make sure remove is done
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
             snapshot_lvm_verify_only: true
-            snapshot_lvm_action: remove
+
+        - name: Mount the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: mount
+            snapshot_lvm_mountpoint_create: true
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Verify the mount is done
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: mount
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
       always:
         - name: Remove storage volumes
           include_role:

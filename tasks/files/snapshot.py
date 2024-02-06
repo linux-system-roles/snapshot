@@ -5,14 +5,20 @@ import json
 import logging
 import math
 import os
+import stat
 import subprocess
 import sys
+from os.path import join as path_join
 
 logger = logging.getLogger("snapshot-role")
 
 LVM_NOTFOUND_RC = 5
 MAX_LVM_NAME = 127
 CHUNK_SIZE = 65536
+DEV_PREFIX = "/dev"
+
+# Minimum LVM snapshot size (512MiB)
+LVM_MIN_SNAPSHOT_SIZE = 512 * 1024**2
 
 
 class LvmBug(RuntimeError):
@@ -46,6 +52,8 @@ class SnapshotCommand:
     REVERT = "revert"
     EXTEND = "extend"
     LIST = "list"
+    MOUNT = "mount"
+    UMOUNT = "umount"
 
 
 class SnapshotStatus:
@@ -80,6 +88,74 @@ class SnapshotStatus:
     ERROR_EXTEND_NOT_FOUND = 28
     ERROR_EXTEND_FAILED = 29
     ERROR_EXTEND_VERIFY_FAILED = 29
+    ERROR_UMOUNT_FAILED = 30
+    ERROR_MOUNT_FAILED = 31
+    ERROR_MOUNT_POINT_NOT_EXISTING = 32
+    ERROR_MOUNT_NOT_BLOCKDEV = 33
+    ERROR_MOUNT_INVALID_PARAMS = 34
+    ERROR_MOUNT_INUSE = 35
+    ERROR_MOUNT_VERIFY_FAILED = 36
+    ERROR_UMOUNT_VERIFY_FAILED = 37
+
+
+def makedirs(path):
+    if not os.path.isdir(path):
+        os.makedirs(path, 0o755)
+
+
+def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=False):
+
+    mount_command = []
+    mountpoint = os.path.normpath(mountpoint)
+    if options is None:
+        options = "defaults"
+
+    if not os.path.isdir(mountpoint):
+        if not mountpoint_create:
+            return (
+                SnapshotStatus.ERROR_MOUNT_POINT_NOT_EXISTING,
+                "mount point does not exist",
+            )
+        makedirs(mountpoint)
+
+    mountpoint = os.path.normpath(mountpoint)
+    mount_command.append("mount")
+
+    if fstype:
+        mount_command.append("-t")
+        mount_command.append(fstype)
+
+    if options:
+        mount_command.append("-o")
+        mount_command.append(options)
+
+    mount_command.append(blockdev)
+    mount_command.append(mountpoint)
+
+    rc, output = run_command(mount_command)
+
+    if rc != 0:
+        logger.info("failed to mount: ".join(mount_command))
+        logger.info(output)
+        return (SnapshotStatus.ERROR_UMOUNT_FAILED, output)
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def umount(umount_target, all_targets):
+    umount_command = []
+
+    umount_command.append("umount")
+    umount_command.append(umount_target)
+    if all_targets:
+        umount_command.append("-A")
+
+    rc, output = run_command(umount_command)
+
+    if rc != 0:
+        logger.info("failed to unmount %s: %s", umount_target, output)
+        return (SnapshotStatus.ERROR_UMOUNT_FAILED, output)
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 # what percentage is part of whole
@@ -127,15 +203,19 @@ def run_command(argv, stdin=None):
     logger.info("Running... %s", " ".join(argv))
     try:
         proc = subprocess.Popen(
-            argv, stdin=stdin, stdout=subprocess.PIPE, close_fds=True
+            argv,
+            stdin=stdin,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            close_fds=True,
         )
 
         out, err = proc.communicate()
-
-        if err is not None:
-            logger.info("Error running %s: %s", argv[0], err)
-
-        out = out.decode("utf-8")
+        if err:
+            logger.info(err.decode().strip())
+            out = err.decode("utf-8")
+        else:
+            out = out.decode("utf-8")
     except OSError as e:
         logger.info("Error running %s: %s", argv[0], e.strerror)
         raise
@@ -221,6 +301,52 @@ def lvm_get_fs_mount_points(block_path):
             mount_list.append(dict(arg.split("=", 1) for arg in line.split(" ") if arg))
 
     return mount_list
+
+
+def lvm_list_json(vg_name, lv_name):
+    lvm_json = lvm_full_report_json()
+    report = lvm_json["report"]
+    vg_dict = dict()
+    fs_dict = dict()
+    lv_list = list()
+    fs_list = list()
+    top_level = dict()
+
+    # Revert snapshots
+    for list_item in report:
+        # The list contains items that are not VGs
+        try:
+            list_item["vg"]
+        except KeyError:
+            continue
+        vg = list_item["vg"][0]["vg_name"]
+        if vg_name and vg != vg_name:
+            continue
+
+        for lv_item in list_item["lv"]:
+            lv_item_name = lv_item["lv_name"]
+            if lv_name and lv_name != lv_item_name:
+                continue
+
+            lv_list.append(lv_item)
+
+        if len(lv_list) > 0:
+            vg_dict[vg] = lv_list
+            lv_list = []
+
+    for lv_list in vg_dict.items():
+        for lv_item in lv_list[1]:
+            block_path = lv_item["lv_path"]
+            fs_mount_points = lvm_get_fs_mount_points(block_path)
+            if fs_mount_points:
+                fs_list.append(fs_mount_points)
+            fs_dict[block_path] = fs_mount_points
+        fs_list = list()
+
+    top_level["volumes"] = vg_dict
+    top_level["mounts"] = fs_dict
+    print(json.dumps(top_level, indent=4))
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def lvm_list_snapset_json(all_lvs, vg_name, lv_name, suffix):
@@ -732,20 +858,6 @@ def extend_lvs(vg_name, lv_name, suffix, required_space):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def list_set(all_lvs, snapset_json):
-    snapset_name = snapset_json["name"]
-    lvm_json = lvm_list_snapset_json(all_lvs, None, None, snapset_name)
-    print(lvm_json)
-
-    return SnapshotStatus.SNAPSHOT_OK, ""
-
-
-def list_lvs(all_lvs, vg_name, lv_name, suffix):
-    lvm_json = lvm_list_snapset_json(all_lvs, vg_name, lv_name, suffix)
-    print(lvm_json)
-    return SnapshotStatus.SNAPSHOT_OK, ""
-
-
 def snapshot_lv(vg_name, lv_name, suffix, snap_size):
     snapshot_name = get_snapshot_name(lv_name, suffix)
 
@@ -1006,6 +1118,272 @@ def revert_snapshot_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
+def umount_verify(mountpoint, vg_name, lv_to_check):
+
+    blockdev = path_join(DEV_PREFIX, vg_name, lv_to_check)
+
+    mount_list = lvm_get_fs_mount_points(mountpoint)
+
+    if mount_list:
+        for mount_point_json in mount_list:
+            if mount_point_json["SOURCE"] == blockdev:
+                return (
+                    SnapshotStatus.ERROR_MOUNT_VERIFY_FAILED,
+                    "device is mounted on mountpoint: " + blockdev,
+                )
+
+            if mount_point_json["TARGET"] == mountpoint:
+                return (
+                    SnapshotStatus.ERROR_MOUNT_VERIFY_FAILED,
+                    "device is mounted on mountpoint: " + mountpoint,
+                )
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def umount_lv(umount_target, vg_name, lv_name, all_targets):
+    logger.info("umount_lv : %s", umount_target)
+
+    if vg_name and lv_name:
+        # Check to make sure all the source vgs/lvs exist
+        rc, message = verify_source_lvs_exist(vg_name, lv_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+    return umount(umount_target, all_targets)
+
+
+def umount_snapshot_set(snapset_json, verify_only):
+    snapset_name = snapset_json["name"]
+    volume_list = snapset_json["volumes"]
+
+    logger.info("mount verify snapsset : %s", snapset_name)
+
+    for list_item in volume_list:
+        vg_name = list_item["vg"]
+        lv_name = list_item["lv"]
+        if "mountpoint" in list_item:
+            mountpoint = list_item["mountpoint"]
+        else:
+            return (
+                SnapshotStatus.ERROR_UMOUNT_VERIFY_FAILED,
+                "set item must provide a mountpoint for : " + vg_name + "/" + lv_name,
+            )
+
+        if "all_targets" in list_item:
+            all_targets = bool(list_item["all_targets"])
+        else:
+            all_targets = False
+
+        if "mount_origin" in list_item:
+            origin = bool(list_item["mount_origin"])
+
+        else:
+            origin = False
+
+        if origin:
+            lv_to_check = lv_name
+        else:
+            lv_to_check = get_snapshot_name(lv_name, snapset_name)
+
+        if verify_only:
+            rc, message = umount_verify(mountpoint, vg_name, lv_to_check)
+        else:
+            rc, message = umount_lv(mountpoint, vg_name, lv_to_check, all_targets)
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def mount_snapshot_set(snapset_json, verify_only, cmdline_mountpoint_create):
+    snapset_name = snapset_json["name"]
+    volume_list = snapset_json["volumes"]
+
+    logger.info("mount verify snapsset : %s", snapset_name)
+
+    for list_item in volume_list:
+        vg_name = list_item["vg"]
+        lv_name = list_item["lv"]
+
+        if not cmdline_mountpoint_create:
+            if "mountpoint_create" in list_item:
+                mountpoint_create = bool(list_item["mountpoint_create"])
+            else:
+                mountpoint_create = False
+        else:
+            mountpoint_create = bool(cmdline_mountpoint_create)
+
+        if "mount_origin" in list_item:
+            origin = bool(list_item["mount_origin"])
+        else:
+            origin = False
+
+        if "fstype" in list_item:
+            fstype = list_item["fstype"]
+        else:
+            fstype = None
+
+        if "options" in list_item:
+            options = list_item["options"]
+        else:
+            options = None
+
+        if "mountpoint" in list_item:
+            mountpoint = list_item["mountpoint"]
+        else:
+            return (
+                SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+                "set item must provide a mountpoint for : " + vg_name + "/" + lv_name,
+            )
+
+        if origin:
+            lv_to_check = lv_name
+        else:
+            lv_to_check = get_snapshot_name(lv_name, snapset_name)
+
+        blockdev = path_join(DEV_PREFIX, vg_name, lv_to_check)
+
+        if verify_only:
+            rc, message = mount_verify(
+                origin, mountpoint, blockdev, vg_name, lv_name, snapset_name
+            )
+        else:
+            rc, message = mount_lv(
+                mountpoint_create,
+                origin,
+                mountpoint,
+                fstype,
+                blockdev,
+                options,
+                vg_name,
+                lv_name,
+                snapset_name,
+            )
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def mount_verify(origin, mountpoint, blockdev, vg_name, lv_name, snapset_name):
+    logger.info(
+        "mount_verify_lv : %d %s %s %s %s %s",
+        origin,
+        mountpoint,
+        blockdev,
+        vg_name,
+        lv_name,
+        snapset_name,
+    )
+
+    if not mountpoint:
+        return (
+            SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+            "must provide mountpoint",
+        )
+
+    if not blockdev and (not vg_name or not lv_name):
+        return (
+            SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+            "must provide blockdev or vg/lv for mount source",
+        )
+
+    if vg_name and lv_name:
+        if origin:
+            lv_to_check = lv_name
+        else:
+            lv_to_check = get_snapshot_name(lv_name, snapset_name)
+
+        # Check to make sure all the source vgs/lvs exist
+        rc, message = verify_source_lvs_exist(vg_name, lv_to_check)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+        blockdev = path_join(DEV_PREFIX, vg_name, lv_to_check)
+    else:
+        mode = os.stat(blockdev).st_mode
+        if not stat.S_ISBLK(mode):
+            return (
+                SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
+                "blockdev parameter is not a block device",
+            )
+
+    if not blockdev:
+        return (
+            SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
+            "blockdev or vg/lv is a required",
+        )
+
+    mount_list = lvm_get_fs_mount_points(blockdev)
+
+    if not mount_list:
+        return (
+            SnapshotStatus.ERROR_MOUNT_VERIFY_FAILED,
+            "blockdev not mounted on any mountpoint: " + blockdev,
+        )
+
+    for mount_point_json in mount_list:
+        if mount_point_json["TARGET"] == mountpoint:
+            return SnapshotStatus.SNAPSHOT_OK, ""
+
+    return (
+        SnapshotStatus.ERROR_MOUNT_VERIFY_FAILED,
+        "blockdev not mounted on specified mountpoint: " + blockdev + " " + mountpoint,
+    )
+
+
+def mount_lv(
+    create,
+    origin,
+    mountpoint,
+    fstype,
+    blockdev,
+    options,
+    vg_name,
+    lv_name,
+    snapset_name,
+):
+    logger.info("mount_lv : %s", mountpoint)
+
+    if not blockdev and (not vg_name or not lv_name):
+        return (
+            SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+            "must provide blockdev or vg/lv for mount source",
+        )
+
+    if vg_name and lv_name:
+        if origin:
+            lv_to_mount = lv_name
+        else:
+            lv_to_mount = get_snapshot_name(lv_name, snapset_name)
+
+        # Check to make sure all the source vgs/lvs exist
+        rc, message = verify_source_lvs_exist(vg_name, lv_to_mount)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+        blockdev = path_join(DEV_PREFIX, vg_name, lv_to_mount)
+    else:
+        mode = os.stat(blockdev).st_mode
+        if not stat.S_ISBLK(mode):
+            return (
+                SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
+                "blockdev parameter is not a block device",
+            )
+
+    if not blockdev:
+        return (
+            SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
+            "blockdev or vg/lv is a required",
+        )
+
+    rc, message = mount(blockdev, mountpoint, fstype, options, create)
+
+    return rc, message
+
+
 def remove_snapshot_set(snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
@@ -1032,7 +1410,10 @@ def remove_snapshot_set(snapset_json):
             return rc, "failed to lvm_is_inuse status"
 
         if in_use:
-            return (rc, "volume is in use: " + vg + "/" + snapshot_name)
+            return (
+                SnapshotStatus.ERROR_REMOVE_FAILED_INUSE,
+                "volume is in use: " + vg + "/" + snapshot_name,
+            )
 
     for list_item in volume_list:
         vg = list_item["vg"]
@@ -1551,6 +1932,10 @@ def validate_args(args):
         print("Snapset name must be provided : ", args.operation)
         sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
+    if len(args.suffix) == 0:
+        print("Snapset name must be provided : ", args.operation)
+        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+
     # not all commands include required_space
     if hasattr(args, "required_space"):
         rc, message, _required_space = get_required_space(args.required_space)
@@ -1560,6 +1945,24 @@ def validate_args(args):
             sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
     return True
+
+
+def validate_umount_args(args):
+    if not args.mountpoint and not args.blockdev:
+        print("--mountpoint or --blockdev is required : ", args.operation)
+        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+
+
+def validate_mount_args(args):
+    if not args.blockdev and (not args.volume_group or not args.logical_volume):
+        print("must provide blockdev or vg/lv for mount source : ", args.operation)
+        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+
+    if not args.mountpoint:
+        print("mountpoint is required : ", args.operation)
+        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def get_required_space(required_space_str):
@@ -1637,6 +2040,14 @@ def validate_json_request(snapset_json, check_percent_space_required):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
+def validate_json_mount_request(snapset_json):
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
+def validate_json_umount_request(snapset_json):
+    return SnapshotStatus.SNAPSHOT_OK, ""
+
+
 def validate_snapset_json(cmd, snapset, verify_only):
     try:
         snapset_json = json.loads(snapset)
@@ -1650,11 +2061,15 @@ def validate_snapset_json(cmd, snapset, verify_only):
     elif cmd == SnapshotCommand.CHECK and not verify_only:
         rc, message = validate_json_request(snapset_json, True)
     elif cmd == SnapshotCommand.CHECK and verify_only:
-        rc, message = validate_json_request(snapset_json, False)
+        rc, message = validate_json_request(snapset_json, not verify_only)
     elif cmd == SnapshotCommand.REMOVE:
         rc, message = validate_json_request(snapset_json, False)
     elif cmd == SnapshotCommand.LIST:
         rc, message = validate_json_request(snapset_json, False)
+    elif cmd == SnapshotCommand.MOUNT:
+        rc, message = validate_json_mount_request(snapset_json)
+    elif cmd == SnapshotCommand.UMOUNT:
+        rc, message = validate_json_umount_request(snapset_json)
     else:
         rc = SnapshotStatus.ERROR_UNKNOWN_FAILURE
         message = "validate_snapset_json"
@@ -1877,39 +2292,114 @@ def list_cmd(args):
 
     if args.set_json is None:
         validate_args(args)
-        rc, message = list_lvs(
-            args.all,
+        rc, message = lvm_list_json(
             args.volume_group,
             args.logical_volume,
-            args.suffix,
         )
     else:
+        # TODO filter the set based on the JSON
+        rc, message = lvm_list_json(None, None)
+
+    return rc, message
+
+
+def mount_cmd(args):
+    logger.info(
+        "mount_cmd: %d %d %d %s %s %s %s %s %s %s %s",
+        args.create,
+        args.origin,
+        args.verify,
+        args.mountpoint,
+        args.fstype,
+        args.blockdev,
+        args.options,
+        args.suffix,
+        args.logical_volume,
+        args.volume_group,
+        args.set_json,
+    )
+
+    if args.set_json is None:
+        validate_mount_args(args)
+
+        if args.verify:
+            rc, message = mount_verify(
+                args.origin,
+                args.mountpoint,
+                args.blockdev,
+                args.volume_group,
+                args.logical_volume,
+                args.suffix,
+            )
+        else:
+            rc, message = mount_lv(
+                args.create,
+                args.origin,
+                args.mountpoint,
+                args.fstype,
+                args.blockdev,
+                args.options,
+                args.volume_group,
+                args.logical_volume,
+                args.suffix,
+            )
+    else:
         rc, message, snapset_json = validate_snapset_json(
-            SnapshotCommand.LIST, args.set_json, False
+            SnapshotCommand.MOUNT, args.set_json, args.verify
         )
-        rc, message = list_set(args.all, snapset_json)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message
+
+        rc, message = mount_snapshot_set(snapset_json, args.verify, args.create)
+
+    return rc, message
+
+
+def umount_cmd(args):
+    logger.info(
+        "umount_cmd: %d %s %s %s %s",
+        args.all_targets,
+        args.mountpoint,
+        args.logical_volume,
+        args.volume_group,
+        args.set_json,
+    )
+    if args.set_json is None:
+        validate_umount_args(args)
+
+        if args.verify:
+            rc, message = umount_verify(
+                args.mountpoint,
+                args.volume_group,
+                args.logical_volume,
+            )
+        else:
+            if args.mountpoint:
+                umount_target = args.mountpoint
+            else:
+                umount_target = args.blockdev
+            rc, message = umount_lv(
+                umount_target, args.volume_group, args.logical_volume, args.all_targets
+            )
+    else:
+        rc, message, snapset_json = validate_snapset_json(
+            SnapshotCommand.UMOUNT, args.set_json, False
+        )
+        rc, message = umount_snapshot_set(snapset_json, args.verify)
 
     return rc, message
 
 
 if __name__ == "__main__":
     set_up_logging()
+
     # Ensure that we get consistent output for parsing stdout/stderr and that we
     # are using the lvmdbusd profile.
     os.environ["LC_ALL"] = "C"
     os.environ["LVM_COMMAND_PROFILE"] = "lvmdbusd"
 
-    # arguments common to all operations
     common_parser = argparse.ArgumentParser(add_help=False)
-    common_parser.add_argument(
-        "-g",
-        "--group",
-        nargs="?",
-        action="store",
-        required=False,
-        default=None,
-        dest="set_json",
-    )
+    # arguments common to most operations
     common_parser.add_argument(
         "-a",
         "--all",
@@ -1919,6 +2409,35 @@ if __name__ == "__main__":
         help="snapshot all VGs and LVs",
     )
     common_parser.add_argument(
+        "-s",
+        "--snapset",
+        dest="suffix",
+        type=str,
+        help="name for snapshot set",
+    )
+    common_parser.add_argument(
+        "-p",
+        "--prefix",
+        dest="prefix",
+        type=str,
+        help="prefix to add to volume name for snapshot",
+    )
+
+    # Group parser
+    group_parser = argparse.ArgumentParser(add_help=False)
+    group_parser.add_argument(
+        "-g",
+        "--group",
+        nargs="?",
+        action="store",
+        required=False,
+        default=None,
+        dest="set_json",
+    )
+
+    # LVM VG/LV parser
+    lvm_parser = argparse.ArgumentParser(add_help=False)
+    lvm_parser.add_argument(
         "-vg",
         "--volumegroup",
         nargs="?",
@@ -1927,7 +2446,7 @@ if __name__ == "__main__":
         dest="volume_group",
         help="volume group to snapshot",
     )
-    common_parser.add_argument(
+    lvm_parser.add_argument(
         "-lv",
         "--logicalvolume",
         nargs="?",
@@ -1935,13 +2454,6 @@ if __name__ == "__main__":
         default=None,
         dest="logical_volume",
         help="logical volume to snapshot",
-    )
-    common_parser.add_argument(
-        "-s",
-        "--snapset",
-        dest="suffix",
-        type=str,
-        help="name for snapshot set",
     )
 
     # arguments for operations that do verify
@@ -1968,6 +2480,60 @@ if __name__ == "__main__":
         help="percent of required space in the volume group to be reserved for snapshot",
     )
 
+    # arguments for operations that deal with mount of filesytems
+    mountpoint_parser = argparse.ArgumentParser(add_help=False)
+    mountpoint_parser.add_argument(
+        "-m",
+        "--mountpoint",
+        dest="mountpoint",
+        required=False,
+        type=str,
+        help="mount point for block device",
+    )
+
+    # arguments for operations that deal with mount of filesytems
+    mount_parser = argparse.ArgumentParser(add_help=False)
+    mount_parser.add_argument(
+        "-b",
+        "--blockdev",
+        dest="blockdev",
+        required=False,
+        type=str,
+        help="mount point for block device",
+    )
+    mount_parser.add_argument(
+        "-t",
+        "--type",
+        dest="fstype",
+        required=False,
+        default="",
+        type=str,
+        help="filesystem type",
+    )
+    mount_parser.add_argument(
+        "-o",
+        "--options",
+        dest="options",
+        required=False,
+        type=str,
+        help="mount options",
+    )
+    mount_parser.add_argument(
+        "-c",
+        "--create",
+        action="store_true",
+        default=False,
+        dest="create",
+        help="create the directory for the mount point if it doesn't already exist",
+    )
+    mount_parser.add_argument(
+        "-O",
+        "--origin",
+        action="store_true",
+        default=False,
+        dest="origin",
+        help="mount the origin",
+    )
     parser = argparse.ArgumentParser(description="Snapshot Operations")
 
     # sub-parsers
@@ -1977,7 +2543,7 @@ if __name__ == "__main__":
     snapshot_parser = subparsers.add_parser(
         SnapshotCommand.SNAPSHOT,
         help="Snapshot given VG/LVs",
-        parents=[common_parser, req_space_parser],
+        parents=[common_parser, lvm_parser, group_parser, req_space_parser],
     )
     snapshot_parser.set_defaults(func=snapshot_cmd)
 
@@ -1985,7 +2551,13 @@ if __name__ == "__main__":
     check_parser = subparsers.add_parser(
         SnapshotCommand.CHECK,
         help="Check space for given VG/LV",
-        parents=[common_parser, req_space_parser, verify_parser],
+        parents=[
+            common_parser,
+            lvm_parser,
+            group_parser,
+            req_space_parser,
+            verify_parser,
+        ],
     )
     check_parser.set_defaults(func=check_cmd)
 
@@ -1993,7 +2565,7 @@ if __name__ == "__main__":
     remove_parser = subparsers.add_parser(
         SnapshotCommand.REMOVE,
         help="Remove snapshots",
-        parents=[common_parser, verify_parser],
+        parents=[common_parser, group_parser, lvm_parser, verify_parser],
     )
     remove_parser.set_defaults(func=remove_cmd)
 
@@ -2001,7 +2573,7 @@ if __name__ == "__main__":
     revert_parser = subparsers.add_parser(
         SnapshotCommand.REVERT,
         help="Revert to snapshots",
-        parents=[common_parser, verify_parser],
+        parents=[common_parser, group_parser, lvm_parser, verify_parser],
     )
     revert_parser.set_defaults(func=revert_cmd)
 
@@ -2009,7 +2581,13 @@ if __name__ == "__main__":
     extend_parser = subparsers.add_parser(
         SnapshotCommand.EXTEND,
         help="Extend given LVs",
-        parents=[common_parser, verify_parser, req_space_parser],
+        parents=[
+            common_parser,
+            group_parser,
+            lvm_parser,
+            verify_parser,
+            req_space_parser,
+        ],
     )
     extend_parser.set_defaults(func=extend_cmd)
 
@@ -2017,9 +2595,46 @@ if __name__ == "__main__":
     list_parser = subparsers.add_parser(
         SnapshotCommand.LIST,
         help="List snapshots",
-        parents=[common_parser],
+        parents=[common_parser, group_parser, lvm_parser],
     )
     list_parser.set_defaults(func=list_cmd)
+
+    # sub-parser for 'mount'
+    mount_parser = subparsers.add_parser(
+        SnapshotCommand.MOUNT,
+        help="mount filesystems",
+        parents=[
+            common_parser,
+            mountpoint_parser,
+            mount_parser,
+            group_parser,
+            lvm_parser,
+            verify_parser,
+        ],
+    )
+    mount_parser.set_defaults(func=mount_cmd)
+
+    # sub-parser for 'umount'
+    umount_parser = subparsers.add_parser(
+        SnapshotCommand.UMOUNT,
+        help="umount filesystems",
+        parents=[
+            common_parser,
+            mountpoint_parser,
+            group_parser,
+            lvm_parser,
+            verify_parser,
+        ],
+    )
+    umount_parser.add_argument(
+        "-A",
+        "--all-targets",
+        action="store_true",
+        default=True,
+        dest="all_targets",
+        help="unmount all mountpoints for the given device",
+    )
+    umount_parser.set_defaults(func=umount_cmd)
 
     args = parser.parse_args()
     return_code, display_message = args.func(args)

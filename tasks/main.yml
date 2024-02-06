@@ -41,3 +41,11 @@
 - name: Extend Snapshots
   ansible.builtin.include_tasks: extend.yml
   when: snapshot_lvm_action == "extend"
+
+- name: Mount Snapshots or Origin
+  ansible.builtin.include_tasks: mount.yml
+  when: snapshot_lvm_action == "mount"
+
+- name: Unmount Snapshots or Origin
+  ansible.builtin.include_tasks: umount.yml
+  when: snapshot_lvm_action == "umount"
