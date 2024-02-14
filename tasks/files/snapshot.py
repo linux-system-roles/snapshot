@@ -104,7 +104,6 @@ def makedirs(path):
 
 
 def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=False):
-
     mount_command = []
     mountpoint = os.path.normpath(mountpoint)
     if options is None:
@@ -303,45 +302,45 @@ def lvm_get_fs_mount_points(block_path):
     return mount_list
 
 
-def lvm_list_json(vg_name, lv_name):
+def vgs_lvs_iterator(vg_name, lv_name, omit_empty_lvs=False):
+    """Return an iterator which returns tuples.
+    The first element in the tuple is the vg object matching given vg_name,
+    or all vgs if vg_name is None.  The second element is a list of
+    corresponding lv items where the lv name matches the given
+    lv_name, or all lvs if lv_name is None.  By default the lv list
+    will be returned even if empty.  Use omit_empty_lvs if you want
+    only the vgs that have lvs."""
     lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-    vg_dict = dict()
+    for list_item in lvm_json["report"]:
+        vg = list_item.get("vg", [{}])[0]
+        if vg and vg["vg_name"] and (not vg_name or vg_name == vg["vg_name"]):
+            lvs = [
+                lv
+                for lv in list_item["lv"]
+                if (not lv_name or lv_name == lv["lv_name"])
+            ]
+            if lvs or not omit_empty_lvs:
+                yield (vg, lvs)
+
+
+def vgs_lvs_dict(vg_name, lv_name):
+    """Return a dict using vgs_lvs_iterator.  Key is
+    vg name, value is list of lvs corresponding to vg.
+    The returned dict will not have vgs that have no lvs."""
+    return dict(
+        [(vg["vg_name"], lvs) for vg, lvs in vgs_lvs_iterator(vg_name, lv_name, True)]
+    )
+
+
+def lvm_list_json(vg_name, lv_name):
+    vg_dict = vgs_lvs_dict(vg_name, lv_name)
     fs_dict = dict()
-    lv_list = list()
-    fs_list = list()
     top_level = dict()
-
-    # Revert snapshots
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-        vg = list_item["vg"][0]["vg_name"]
-        if vg_name and vg != vg_name:
-            continue
-
-        for lv_item in list_item["lv"]:
-            lv_item_name = lv_item["lv_name"]
-            if lv_name and lv_name != lv_item_name:
-                continue
-
-            lv_list.append(lv_item)
-
-        if len(lv_list) > 0:
-            vg_dict[vg] = lv_list
-            lv_list = []
-
-    for lv_list in vg_dict.items():
-        for lv_item in lv_list[1]:
+    for lv_list in vg_dict.values():
+        for lv_item in lv_list:
             block_path = lv_item["lv_path"]
             fs_mount_points = lvm_get_fs_mount_points(block_path)
-            if fs_mount_points:
-                fs_list.append(fs_mount_points)
             fs_dict[block_path] = fs_mount_points
-        fs_list = list()
 
     top_level["volumes"] = vg_dict
     top_level["mounts"] = fs_dict
@@ -349,49 +348,7 @@ def lvm_list_json(vg_name, lv_name):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def lvm_list_snapset_json(all_lvs, vg_name, lv_name, suffix):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-    vg_dict = dict()
-    fs_dict = dict()
-    lv_list = list()
-    top_level = dict()
-
-    # Revert snapshots
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-        vg = list_item["vg"][0]["vg_name"]
-        if vg_name and vg != vg_name:
-            continue
-
-        for lv_item in list_item["lv"]:
-            lv_item_name = lv_item["lv_name"]
-            if lv_name and lv_name != lv_item_name:
-                continue
-
-            lv_list.append(lv_item)
-
-        if len(lv_list) > 0:
-            vg_dict[vg] = lv_list
-            lv_list = []
-
-    for lv_list in vg_dict.items():
-        for lv_item in lv_list[1]:
-            block_path = lv_item["lv_path"]
-            fs_mount_points = lvm_get_fs_mount_points(block_path)
-            fs_dict[block_path] = fs_mount_points
-
-    top_level["volumes"] = vg_dict
-    top_level["mounts"] = fs_dict
-    return json.dumps(top_level, indent=4)
-
-
 def get_snapshot_name(lv_name, suffix):
-
     if suffix:
         suffix_str = suffix
     else:
@@ -425,7 +382,6 @@ def lvm_lv_exists(vg_name, lv_name):
 
 
 def lvm_is_owned(lv_name, suffix):
-
     if suffix:
         suffix_str = suffix
     else:
@@ -533,7 +489,6 @@ def lvm_snapshot_remove(vg_name, snapshot_name):
 
 
 def revert_lv(vg_name, snapshot_name):
-
     rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         raise LvmBug("'lvs' failed '%d'" % rc)
@@ -561,27 +516,13 @@ def revert_lv(vg_name, snapshot_name):
 
 
 def revert_lvs(vg_name, lv_name, suffix):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-
     # Revert snapshots
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-        vg = list_item["vg"][0]["vg_name"]
-        if vg_name and vg != vg_name:
-            continue
-
-        for lv in list_item["lv"]:
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
+        for lv in lv_list:
             lv_item_name = lv["lv_name"]
-            if lv_name and lv != lv_name:
-                continue
 
             # Make sure the source LV isn't a snapshot.
-            rc, is_snapshot = lvm_is_snapshot(vg, lv_item_name)
+            rc, is_snapshot = lvm_is_snapshot(vg["vg_name"], lv_item_name)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 raise LvmBug("'lvs' failed '%d'" % rc)
@@ -591,7 +532,7 @@ def revert_lvs(vg_name, lv_name, suffix):
             if not lv_item_name.endswith(suffix):
                 continue
 
-            rc, message = revert_lv(vg, lv_item_name)
+            rc, message = revert_lv(vg["vg_name"], lv_item_name)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
@@ -729,9 +670,6 @@ def extend_verify_snapshot_set(snapset_json):
 
 
 def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-
     # if the vg_name and lv_name are supplied, make sure the source is not a snapshot
     if vg_name and lv_name:
         rc, is_snapshot = lvm_is_snapshot(vg_name, lv_name)
@@ -746,23 +684,9 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
                 "source is a snapshot:" + vg_name + "/" + lv_name,
             )
 
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-
-        if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
-            continue
-
-        verify_vg_name = list_item["vg"][0]["vg_name"]
-
-        for lvs in list_item["lv"]:
-            if lv_name and lvs["lv_name"] != lv_name:
-                continue
-
-            rc, is_snapshot = lvm_is_snapshot(verify_vg_name, lvs["lv_name"])
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
+        for lv in lv_list:
+            rc, is_snapshot = lvm_is_snapshot(vg["vg_name"], lv["lv_name"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return (
                     SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
@@ -773,16 +697,16 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
             if is_snapshot:
                 continue
 
-            snapshot_name = get_snapshot_name(lvs["lv_name"], suffix)
+            snapshot_name = get_snapshot_name(lv["lv_name"], suffix)
 
             # Make sure the snapshot exists
-            rc, vg_exists, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
+            rc, vg_exists, lv_exists = lvm_lv_exists(vg["vg_name"], snapshot_name)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return (
                     SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
                     "extend verify lvm_lv_exists failed "
-                    + verify_vg_name
+                    + vg["vg_name"]
                     + "/"
                     + snapshot_name,
                 )
@@ -791,11 +715,11 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
                 return (
                     SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
                     "extend verify snapshot not found: "
-                    + verify_vg_name
+                    + vg["vg_name"]
                     + "/"
                     + snapshot_name,
                 )
-            rc, is_snapshot = lvm_is_snapshot(verify_vg_name, snapshot_name)
+            rc, is_snapshot = lvm_is_snapshot(vg["vg_name"], snapshot_name)
 
             if not is_snapshot:
                 return (
@@ -804,7 +728,7 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
                 )
 
             rc, size_ok, message = extend_check_size(
-                verify_vg_name, lvs["lv_name"], snapshot_name, percent_space_required
+                vg["vg_name"], lv["lv_name"], snapshot_name, percent_space_required
             )
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -814,7 +738,7 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
                 return (
                     SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
                     "verify failed due to insufficient space for: "
-                    + verify_vg_name
+                    + vg["vg_name"]
                     + "/"
                     + snapshot_name,
                 )
@@ -822,27 +746,13 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
 
 
 def extend_lvs(vg_name, lv_name, suffix, required_space):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-
     # Extend snapshots
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-        vg = list_item["vg"][0]["vg_name"]
-        if vg_name and vg != vg_name:
-            continue
-
-        for lv in list_item["lv"]:
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
+        for lv in lv_list:
             lv = lv["lv_name"]
-            if lv_name and lv != lv_name:
-                continue
 
             # Make sure the source LV isn't a snapshot.
-            rc, is_snapshot = lvm_is_snapshot(vg, lv)
+            rc, is_snapshot = lvm_is_snapshot(vg["vg_name"], lv)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 raise LvmBug("'lvs' failed '%d'" % rc)
@@ -850,7 +760,7 @@ def extend_lvs(vg_name, lv_name, suffix, required_space):
             if is_snapshot:
                 continue
 
-            rc, message = extend_lv_snapshot(vg, lv, suffix, required_space)
+            rc, message = extend_lv_snapshot(vg["vg_name"], lv, suffix, required_space)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
@@ -922,7 +832,6 @@ def check_space_for_snapshots(vg, lvs, lv_name, required_percent):
 
 
 def check_name_for_snapshot(lv_name, suffix):
-
     if suffix:
         suffix_len = len(suffix)
     else:
@@ -943,31 +852,13 @@ def check_lvs(required_space, vg_name, lv_name, suffix):
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message
 
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-
-        if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
-            continue
-
-        for lvs in list_item["lv"]:
-            if lv_name and lvs["lv_name"] != lv_name:
-                continue
-
-            rc, message = check_name_for_snapshot(lvs["lv_name"], suffix)
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
+        for lv in lv_list:
+            rc, message = check_name_for_snapshot(lv["lv_name"], suffix)
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
 
-        lvs = list_item["lv"]
-        volume_group = list_item["vg"][0]
-
-        if check_space_for_snapshots(volume_group, lvs, lv_name, required_space):
+        if check_space_for_snapshots(vg, lv_list, lv_name, required_space):
             return (
                 SnapshotStatus.ERROR_INSUFFICIENT_SPACE,
                 "insufficient space for snapshots",
@@ -1025,27 +916,14 @@ def check_verify_lvs_set(snapset_json):
 
 
 def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, suffix):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
     vg_found = False
     lv_found = False
 
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-
-        if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
-            continue
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
         vg_found = True
-        verify_vg_name = list_item["vg"][0]["vg_name"]
+        verify_vg_name = vg["vg_name"]
 
-        for lvs in list_item["lv"]:
-            if lv_name and lvs["lv_name"] != lv_name:
-                continue
-
+        for lvs in lv_list:
             lv_found = True
             # Only verify that a snapshot exits for non-snapshot LVs
             rc, is_snapshot = lvm_is_snapshot(verify_vg_name, lvs["lv_name"])
@@ -1119,7 +997,6 @@ def revert_snapshot_set(snapset_json):
 
 
 def umount_verify(mountpoint, vg_name, lv_to_check):
-
     blockdev = path_join(DEV_PREFIX, vg_name, lv_to_check)
 
     mount_list = lvm_get_fs_mount_points(mountpoint)
@@ -1468,29 +1345,17 @@ def remove_verify_snapshot_set(snapset_json):
 def remove_snapshots(volume_group, logical_volume, suffix):
     rc = SnapshotStatus.SNAPSHOT_OK
     message = ""
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
 
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
+    if logical_volume:
+        search_lv_name = get_snapshot_name(logical_volume, suffix)
+    else:
+        search_lv_name = None
 
-        vg_name = list_item["vg"][0]["vg_name"]
+    for vg, lv_list in vgs_lvs_iterator(volume_group, search_lv_name):
+        vg_name = vg["vg_name"]
 
-        if volume_group and volume_group != vg_name:
-            continue
-
-        if logical_volume:
-            search_lv_name = get_snapshot_name(logical_volume, suffix)
-
-        for lvs in list_item["lv"]:
+        for lvs in lv_list:
             lv_name = lvs["lv_name"]
-
-            if logical_volume and lv_name != search_lv_name:
-                continue
 
             if not lvm_is_owned(lv_name, suffix):
                 continue
@@ -1507,9 +1372,6 @@ def remove_snapshots(volume_group, logical_volume, suffix):
 
 
 def remove_verify_snapshots(vg_name, lv_name, suffix):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-
     # if the vg_name and lv_name are supplied, make sure the source is not a snapshot
     if vg_name and lv_name:
         rc, is_snapshot = lvm_is_snapshot(vg_name, lv_name)
@@ -1524,22 +1386,10 @@ def remove_verify_snapshots(vg_name, lv_name, suffix):
                 "source is a snapshot:" + vg_name + "/" + lv_name,
             )
 
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
+        verify_vg_name = vg["vg_name"]
 
-        if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
-            continue
-
-        verify_vg_name = list_item["vg"][0]["vg_name"]
-
-        for lvs in list_item["lv"]:
-            if lv_name and lvs["lv_name"] != lv_name:
-                continue
-
+        for lvs in lv_list:
             rc, is_snapshot = lvm_is_snapshot(verify_vg_name, lvs["lv_name"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return (
@@ -1558,10 +1408,8 @@ def remove_verify_snapshots(vg_name, lv_name, suffix):
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return (
                     SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
-                    "extend verify: command failed for LV exists",
+                    "remove verify: command failed for LV exists",
                 )
-
-            rc, _vg_exists, lv_exists = lvm_lv_exists(verify_vg_name, snapshot_name)
 
             if lv_exists:
                 return (
@@ -1577,16 +1425,7 @@ def remove_verify_snapshots(vg_name, lv_name, suffix):
 
 def get_current_space_state():
     vg_size_dict = dict()
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
-        volume_group = list_item["vg"][0]
-
+    for volume_group, lv_list in vgs_lvs_iterator(None, None):
         vg_name = volume_group["vg_name"]
         vg_space = VGSpaceState()
 
@@ -1605,7 +1444,7 @@ def get_current_space_state():
             vg_space.vg_extent_size,
         )
 
-        for lv in list_item["lv"]:
+        for lv in lv_list:
             lv_name = lv["lv_name"]
             lv_space = LVSpaceState()
 
@@ -1839,35 +1678,21 @@ def snapshot_set(snapset_json):
 
 
 def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix):
-    lvm_json = lvm_full_report_json()
-    report = lvm_json["report"]
-    vg_found = False
-    lv_found = False
-
     # check to make sure there is space and no name conflicts
     rc, message = check_lvs(required_space, vg_name, lv_name, suffix)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message
 
-    # Take Snapshots
-    for list_item in report:
-        # The list contains items that are not VGs
-        try:
-            list_item["vg"]
-        except KeyError:
-            continue
+    vg_found = False
+    lv_found = False
 
-        if vg_name and list_item["vg"][0]["vg_name"] != vg_name:
-            continue
+    # Take Snapshots
+    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
         vg_found = True
-        for lv in list_item["lv"]:
-            if lv_name and lv["lv_name"] != lv_name:
-                continue
+        for lv in lv_list:
             lv_found = True
             # Make sure the source LV isn't a snapshot.
-            rc, is_snapshot = lvm_is_snapshot(
-                list_item["vg"][0]["vg_name"], lv["lv_name"]
-            )
+            rc, is_snapshot = lvm_is_snapshot(vg["vg_name"], lv["lv_name"])
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 raise LvmBug("'lvs' failed '%d'" % rc)
@@ -1881,7 +1706,7 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix):
             )
 
             rc, message = snapshot_lv(
-                list_item["vg"][0]["vg_name"],
+                vg["vg_name"],
                 lv["lv_name"],
                 suffix,
                 snap_size,
@@ -1926,10 +1751,6 @@ def validate_args(args):
 
     if not args.suffix:
         print("--snapset is required : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
-
-    if len(args.suffix) == 0:
-        print("Snapset name must be provided : ", args.operation)
         sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
     if len(args.suffix) == 0:
@@ -2171,7 +1992,7 @@ def remove_cmd(args):
     if args.set_json is None:
         validate_args(args)
         if args.all and args.volume_group:
-            print("-all and --volume_group are mutually exclusive: ", args.operation)
+            print("--all and --volume_group are mutually exclusive: ", args.operation)
             sys.exit(1)
 
         if args.verify:
