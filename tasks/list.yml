@@ -14,3 +14,9 @@
 - name: Set snapshot_facts to the JSON results
   set_fact:
     snapshot_facts: "{{ snapshot_cmd.stdout | from_json }}"
+
+# - name: Debug
+#   command: >-
+#     lvm fullreport --units B --nosuffix --configreport vg -o vg_name,vg_uuid,vg_size,vg_free,vg_extent_size
+#     --configreport lv -o lv_uuid,lv_name,lv_full_name,lv_path,lv_size,origin,origin_size,pool_lv,lv_tags,lv_attr,vg_name,data_percent,metadata_percent,pool_lv
+#     --configreport pv -o pv_name --reportformat json
