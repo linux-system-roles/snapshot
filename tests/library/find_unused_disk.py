@@ -185,37 +185,56 @@ def run_module():
     module = AnsibleModule(argument_spec=module_args, supports_check_mode=True)
 
     max_size = Size(module.params["max_size"])
+    info = []
     for path, attrs in get_disks(module).items():
         if is_ignored(path):
+            info.append("Disk [%s] attrs [%s] is ignored" % (path, attrs))
             continue
 
         interface = module.params["with_interface"]
 
         if interface is not None and not is_device_interface(module, path, interface):
+            info.append(
+                "Disk [%s] attrs [%s] is not an interface [%s]"
+                % (path, attrs, interface)
+            )
             continue
 
         if attrs["fstype"]:
+            info.append("Disk [%s] attrs [%s] has fstype" % (path, attrs))
             continue
 
         if Size(attrs["size"]).bytes < Size(module.params["min_size"]).bytes:
+            info.append(
+                "Disk [%s] attrs [%s] size is less than requested" % (path, attrs)
+            )
             continue
 
         if max_size.bytes > 0 and Size(attrs["size"]).bytes > max_size.bytes:
+            info.append(
+                "Disk [%s] attrs [%s] size is greater than requested" % (path, attrs)
+            )
             continue
 
         if get_partitions(path):
+            info.append("Disk [%s] attrs [%s] has partitions" % (path, attrs))
             continue
 
         if not no_holders(get_sys_name(path)):
+            info.append("Disk [%s] attrs [%s] has holders" % (path, attrs))
             continue
 
         if not can_open(path):
+            info.append(
+                "Disk [%s] attrs [%s] cannot be opened exclusively" % (path, attrs)
+            )
             continue
 
         result["disks"].append(os.path.basename(path))
         if len(result["disks"]) >= module.params["max_return"]:
             break
 
+    result["info"] = info
     if not result["disks"]:
         result["disks"] = "Unable to find unused disk"
     else:

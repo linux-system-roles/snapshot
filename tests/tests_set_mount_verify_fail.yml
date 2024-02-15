@@ -2,6 +2,14 @@
 - name: Verify the extend verify commmand fails when space too low
   hosts: all
   vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "50%"
     snapshot_test_set:
       name: snapset1
       volumes:
@@ -19,31 +27,8 @@
   tasks:
     - name: Run tests
       block:
-        - name: Run the storage role to create test LVs
-          include_role:
-            name: fedora.linux_system_roles.storage
-
-        - name: Get unused disks
-          include_tasks: get_unused_disk.yml
-          vars:
-            min_size: "1g"
-            min_return: 10
-
-        - name: Set disk list
-          set_fact:
-            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
-              list }}"
-
-        - name: Create LVM logical volumes under volume groups
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                volumes:
-                  - name: lv1
-                    size: "50%"
+        - name: Setup
+          include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot set of LVs
           include_role:
@@ -72,15 +57,6 @@
               __snapshot_lvm_set: "{{ snapshot_test_verify_set }}"
 
       always:
-        - name: Remove storage volumes
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_safe_mode: false
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                state: absent
-                volumes:
-                  - name: lv1
-                    state: absent
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup

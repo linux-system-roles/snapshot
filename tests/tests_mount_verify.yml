@@ -1,66 +1,48 @@
 ---
 - name: Basic mount verify snapshot test
   hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+            fs_type: xfs
+          - name: lv2
+            size: "50%"
+            fs_type: xfs
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "10%"
+            fs_type: xfs
+          - name: lv4
+            size: "20%"
+            fs_type: xfs
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "30%"
+            fs_type: xfs
+          - name: lv6
+            size: "25%"
+            fs_type: xfs
+          - name: lv7
+            size: "10%"
+            fs_type: xfs
+          - name: lv8
+            size: "10%"
+            fs_type: xfs
   tasks:
     - name: Run tests
       block:
-        - name: Run the storage role to create test LVs
-          include_role:
-            name: fedora.linux_system_roles.storage
-
-        - name: Get unused disks
-          include_tasks: get_unused_disk.yml
-          vars:
-            min_size: "1g"
-            min_return: 10
-
-        - name: Set disk lists
-          set_fact:
-            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
-              list }}"
-            disk_list_2: "{{ range(3, 6) | map('extract', unused_disks) |
-              list }}"
-            disk_list_3: "{{ range(6, 10) | map('extract', unused_disks) |
-              list }}"
-
-        - name: Create LVM logical volumes under volume groups
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                volumes:
-                  - name: lv1
-                    size: "15%"
-                    fs_type: xfs
-                  - name: lv2
-                    size: "50%"
-                    fs_type: xfs
-              - name: test_vg2
-                disks: "{{ disk_list_2 }}"
-                volumes:
-                  - name: lv3
-                    size: "10%"
-                    fs_type: xfs
-                  - name: lv4
-                    size: "20%"
-                    fs_type: xfs
-              - name: test_vg3
-                disks: "{{ disk_list_3 }}"
-                volumes:
-                  - name: lv5
-                    size: "30%"
-                    fs_type: xfs
-                  - name: lv6
-                    size: "25%"
-                    fs_type: xfs
-                  - name: lv7
-                    size: "10%"
-                    fs_type: xfs
-                  - name: lv8
-                    size: "10%"
-                    fs_type: xfs
+        - name: Setup
+          include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot LVs
           include_role:
@@ -70,16 +52,6 @@
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
-
-        - name: Check if system is ostree
-          stat:
-            path: /run/ostree-booted
-          register: __ostree_booted_stat
-
-        - name: Set mount point
-          set_fact:
-            __mnt: "{{ __ostree_booted_stat.stat.exists |
-              ternary('/var/mnt', '/mnt') }}"
 
         - name: Verify the snapshot LVs are created
           include_role:
@@ -98,7 +70,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
             snapshot_lvm_mountpoint_create: true
 
         - name: Mount the snapshot for lv2
@@ -109,7 +81,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv2
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv2_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
             snapshot_lvm_mountpoint_create: true
 
         - name: Mount the snapshot for lv7
@@ -120,7 +92,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv7
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv7_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv7_mp' }}"
             snapshot_lvm_mountpoint_create: true
 
         - name: Mount the origin for lv6
@@ -131,7 +103,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv6
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv6_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
             snapshot_lvm_mountpoint_create: true
             snapshot_lvm_mount_origin: true
 
@@ -143,9 +115,8 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
             snapshot_lvm_verify_only: true
-
 
         - name: Verify snapshot is mounted for lv2
           include_role:
@@ -155,9 +126,8 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv2
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv2_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
             snapshot_lvm_verify_only: true
-
 
         - name: Verify snapshot is mounted for lv7
           include_role:
@@ -167,7 +137,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv7
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv7_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv7_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Verify origin is mounted lv6
@@ -178,7 +148,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv6
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv6_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
             snapshot_lvm_mountpoint_create: true
             snapshot_lvm_mount_origin: true
             snapshot_lvm_verify_only: true
@@ -191,7 +161,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
 
         - name: Umount the snapshot for lv2
           include_role:
@@ -201,7 +171,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv2
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv2_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
 
         - name: Umount the snapshot for lv7
           include_role:
@@ -211,14 +181,14 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv7
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv7_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv7_mp' }}"
 
         - name: Umount the origin for lv6
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_action: umount
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv6_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
 
         - name: Verify umount of the for lv1
           include_role:
@@ -228,7 +198,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the for lv2
@@ -239,7 +209,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv2
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv2_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the for lv7
@@ -250,7 +220,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv7
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv7_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv7_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the origin for lv6
@@ -261,7 +231,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg3
             snapshot_lvm_lv: lv6
-            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv6_mp' }}"
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Run the snapshot role remove the snapshot LVs
@@ -279,37 +249,6 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: remove
       always:
-        - name: Remove storage volumes
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_safe_mode: false
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                state: absent
-                volumes:
-                  - name: lv1
-                    state: absent
-                  - name: lv2
-                    state: absent
-              - name: test_vg2
-                disks: "{{ disk_list_2 }}"
-                state: absent
-                volumes:
-                  - name: lv3
-                    state: absent
-                  - name: lv4
-                    state: absent
-              - name: test_vg3
-                disks: "{{ disk_list_3 }}"
-                state: absent
-                volumes:
-                  - name: lv5
-                    state: absent
-                  - name: lv6
-                    state: absent
-                  - name: lv7
-                    state: absent
-                  - name: lv8
-                    state: absent
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup

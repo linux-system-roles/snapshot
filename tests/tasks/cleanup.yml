@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: MIT
+# Input:
+# - test_disk_min_size e.g. "1g"
+# - test_disk_count e.g. 10
+# - test_storage_pools - the list of pools & volumes to create
+---
+- name: Remove storage volumes
+  include_role:
+    name: fedora.linux_system_roles.storage
+  vars:
+    storage_safe_mode: false
+    storage_pools: |
+      {% set cleanup_pools = [] %}
+      {% for pool in test_storage_pools %}
+      {%   set clean_pool = {"name": pool["name"],
+                             "disks": pool["disks"], "state": "absent"} %}
+      {%   set vols = [] %}
+      {%   for vol in pool.get("volumes", []) %}
+      {%     set clean_vol = {"name": vol["name"], "state": "absent"} %}
+      {%     set _ = vols.append(clean_vol) %}
+      {%   endfor %}
+      {%   if vols %}
+      {%     set _ = clean_pool.__setitem__("volumes", vols) %}
+      {%   endif %}
+      {%   set _ = cleanup_pools.append(clean_pool) %}
+      {% endfor %}
+      {{ cleanup_pools }}
+
+- name: Save unused_disk_return before verify
+  set_fact:
+    unused_disks_before: "{{ unused_disks }}"
+
+- name: Verify that pools/volumes used in test are removed
+  include_tasks: get_unused_disk.yml
+  vars:
+    min_size: "{{ test_disk_min_size }}"
+    min_return: "{{ test_disk_count }}"
+
+- name: Debug why list of unused disks has changed
+  shell: |
+    set -euxo pipefail
+    exec 1>&2
+    mount -f -l
+    df -H
+    lvs --all
+    pvs --all
+    vgs --all
+    cat /tmp/snapshot_role.log || :
+  changed_when: false
+  when: unused_disks_before != unused_disks_return.disks
+  failed_when: unused_disks_before != unused_disks_return.disks

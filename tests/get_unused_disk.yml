@@ -38,11 +38,28 @@
     unused_disks: "{{ unused_disks_return.disks }}"
   when: "'Unable to find unused disk' not in unused_disks_return.disks"
 
-- name: Exit playbook when there's not enough unused disks in the system
-  fail:
-    msg: "Unable to find enough unused disks. Exiting playbook."
-  when: unused_disks | d([]) | length < disks_needed | d(1)
-
 - name: Print unused disks
   debug:
     var: unused_disks
+    verbosity: 2
+
+- name: Try to find out why there are not enough unused disks
+  when: unused_disks | d([]) | length < disks_needed | d(1)
+  block:
+    - name: Print info from find_unused_disk
+      debug:
+        var: unused_disks_return.info
+      when: unused_disks_return.info | d([]) | length > 0
+
+    - name: Show disk information
+      shell: |
+        set -euxo pipefail
+        exec 1>&2
+        lvs --all
+        pvs --all
+        vgs --all
+      changed_when: false
+
+    - name: Exit playbook when there's not enough unused disks in the system
+      fail:
+        msg: "Unable to find enough unused disks. Exiting playbook."
