@@ -10,6 +10,11 @@
     use: "{{ (__snapshot_is_ostree | d(false)) |
               ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
 
+- name: Show snapshot command
+  debug:
+    var: __snapshot_cmd
+    verbosity: 2
+
 - name: Run snapshot command {{ snapshot_lvm_action }}
   ansible.builtin.script: "{{ __snapshot_cmd }}"
   args:
