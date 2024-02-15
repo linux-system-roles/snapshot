@@ -1,34 +1,20 @@
 ---
 - name: Verify snapshot action fails if percent_space_required param negative
   hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "100%"
   tasks:
     - name: Run tests
       block:
-        - name: Run the storage role to create test LVs
-          include_role:
-            name: fedora.linux_system_roles.storage
-
-        - name: Get unused disks
-          include_tasks: get_unused_disk.yml
-          vars:
-            min_size: "1g"
-            min_return: 10
-
-        - name: Set disk list
-          set_fact:
-            disk_list_1: "{{ range(0, 3) | map('extract', unused_disks) |
-              list }}"
-
-        - name: Create LVM logical volumes under volume groups
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                volumes:
-                  - name: lv1
-                    size: "100%"
+        - name: Setup
+          include_tasks: tasks/setup.yml
 
         - name: Test failure of creating snapshot that has negative space
           include_tasks: verify-role-failed.yml
@@ -48,17 +34,6 @@
                     lv: lv1
                     percent_space_required: -20
       always:
-        - name: Remove storage volumes
-          include_role:
-            name: fedora.linux_system_roles.storage
-          vars:
-            storage_safe_mode: false
-            storage_pools:
-              - name: test_vg1
-                disks: "{{ disk_list_1 }}"
-                state: absent
-                volumes:
-                  - name: lv1
-                    state: absent
-                  - name: lv2
-                    state: absent
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
