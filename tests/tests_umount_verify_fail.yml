@@ -40,6 +40,16 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
 
+        - name: Check if system is ostree
+          stat:
+            path: /run/ostree-booted
+          register: __ostree_booted_stat
+
+        - name: Set mount point
+          set_fact:
+            __mnt: "{{ __ostree_booted_stat.stat.exists |
+              ternary('/var/mnt', '/mnt') }}"
+
         - name: Mount the snapshot for LV
           include_role:
             name: linux-system-roles.snapshot
@@ -48,7 +58,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: /mnt/lv1_mp
+            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
             snapshot_lvm_mountpoint_create: true
 
         - name: Verify snapshot is mounted for lv1
@@ -59,7 +69,7 @@
             snapshot_lvm_action: mount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: /mnt/lv1_mp
+            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
             snapshot_lvm_verify_only: true
 
         - name: Test failure of verifying umount when fs mounted
@@ -72,7 +82,7 @@
               snapshot_lvm_action: umount
               snapshot_lvm_vg: test_vg1
               snapshot_lvm_lv: lv1
-              snapshot_lvm_mountpoint: /mnt/lv1_mp
+              snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
               snapshot_lvm_verify_only: true
 
         - name: Umount the snapshot for lv1
@@ -83,7 +93,7 @@
             snapshot_lvm_action: umount
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
-            snapshot_lvm_mountpoint: /mnt/lv1_mp
+            snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
 
         - name: Remove the snapshot LVs
           include_role:

@@ -40,6 +40,16 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
 
+        - name: Check if system is ostree
+          stat:
+            path: /run/ostree-booted
+          register: __ostree_booted_stat
+
+        - name: Set mount point
+          set_fact:
+            __mnt: "{{ __ostree_booted_stat.stat.exists |
+              ternary('/var/mnt', '/mnt') }}"
+
         - name: Test failure of verifying wrong mount
           include_tasks: verify-role-failed.yml
           vars:
@@ -50,7 +60,7 @@
               snapshot_lvm_action: mount
               snapshot_lvm_vg: wrong_vg
               snapshot_lvm_lv: lv1
-              snapshot_lvm_mountpoint: /mnt/lv1_mp
+              snapshot_lvm_mountpoint: "{{ __mnt ~ '/lv1_mp' }}"
               snapshot_lvm_mountpoint_create: true
 
         - name: Remove the snapshot LVs
