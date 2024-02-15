@@ -1,7 +1,0 @@
-# SPDX-License-Identifier: MIT
----
-- name: Mount Snapshot or Origin
-  ansible.builtin.script: "{{ __snapshot_cmd }}"
-  args:
-    executable: "{{ __snapshot_python }}"
-  register: snapshot_cmd
