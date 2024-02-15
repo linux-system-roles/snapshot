@@ -10,42 +10,26 @@
     use: "{{ (__snapshot_is_ostree | d(false)) |
               ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
 
-- name: Check for space and name problems
-  ansible.builtin.include_tasks: check.yml
-  when: snapshot_lvm_action == "check" and not snapshot_lvm_verify_only
+- name: Run snapshot command {{ snapshot_lvm_action }}
+  ansible.builtin.script: "{{ __snapshot_cmd }}"
+  args:
+    executable: "{{ __snapshot_python }}"
+  register: snapshot_cmd
+  no_log: true
+  ignore_errors: true  # noqa: ignore-errors - handled below
 
-- name: Verify Complete
-  ansible.builtin.include_tasks: verify_complete.yml
-  when: snapshot_lvm_action == "check" and snapshot_lvm_verify_only
+- name: Print out response
+  debug:
+    var: snapshot_cmd.stdout
+    verbosity: 2
 
-- name: Snapshot Volumes
-  ansible.builtin.include_tasks: snapshot.yml
-  when: snapshot_lvm_action == "snapshot"
-
-- name: Remove Snapshots
-  ansible.builtin.include_tasks: remove.yml
-  when: snapshot_lvm_action == "remove" and not snapshot_lvm_verify_only
-
-- name: Verify Remove
-  ansible.builtin.include_tasks: verify_remove.yml
-  when: snapshot_lvm_action == "remove" and snapshot_lvm_verify_only
-
-- name: Revert to Snapshot
-  ansible.builtin.include_tasks: revert.yml
-  when: snapshot_lvm_action == "revert"
-
-- name: List Snapshot Attributes
-  ansible.builtin.include_tasks: list.yml
+- name: Set snapshot_facts to the JSON results
+  set_fact:
+    snapshot_facts: "{{ snapshot_cmd.stdout | from_json }}"
   when: snapshot_lvm_action == "list"
 
-- name: Extend Snapshots
-  ansible.builtin.include_tasks: extend.yml
-  when: snapshot_lvm_action == "extend"
-
-- name: Mount Snapshots or Origin
-  ansible.builtin.include_tasks: mount.yml
-  when: snapshot_lvm_action == "mount"
-
-- name: Unmount Snapshots or Origin
-  ansible.builtin.include_tasks: umount.yml
-  when: snapshot_lvm_action == "umount"
+- name: Show errors
+  debug:
+    msg: "{{ snapshot_cmd.stderr }}"
+  when: snapshot_cmd.rc != 0
+  failed_when: snapshot_cmd.rc != 0
