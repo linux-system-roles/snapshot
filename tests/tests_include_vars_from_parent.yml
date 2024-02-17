@@ -3,6 +3,8 @@
   hosts: all
   gather_facts: true
   vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
     snapshot_lvm_action: check
     snapshot_lvm_percent_space_required: 2
     snapshot_lvm_snapset_name: snapset1

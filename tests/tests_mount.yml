@@ -2,6 +2,8 @@
 - name: Basic mount snapshot test
   hosts: all
   vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
     test_disk_min_size: "1g"
     test_disk_count: 10
     test_storage_pools:

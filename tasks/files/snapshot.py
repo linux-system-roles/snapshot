@@ -5,6 +5,7 @@ import json
 import logging
 import math
 import os
+import re
 import stat
 import subprocess
 import sys
@@ -313,7 +314,13 @@ def vgs_lvs_iterator(vg_name, lv_name, omit_empty_lvs=False):
     lvm_json = lvm_full_report_json()
     for list_item in lvm_json["report"]:
         vg = list_item.get("vg", [{}])[0]
-        if vg and vg["vg_name"] and (not vg_name or vg_name == vg["vg_name"]):
+        # pylint: disable-msg=E0601
+        if (
+            vg
+            and vg["vg_name"]
+            and (not vg_name or vg_name == vg["vg_name"])
+            and (not VG_INCLUDE or VG_INCLUDE.search(vg["vg_name"]))
+        ):
             lvs = [
                 lv
                 for lv in list_item["lv"]
@@ -1809,6 +1816,12 @@ def get_required_space(required_space_str):
 
 def print_result(rc, message):
     if rc != SnapshotStatus.SNAPSHOT_OK:
+        # NOTICE - even though this says stderr, if this is called via the
+        # Ansible builtin.script module, with the ssh connection plugin (the default),
+        # then the stderr output will be joined with stdout.  HOWEVER - if running
+        # with -c local, then stdout and stderr will be separated into different
+        # channels.
+        # See https://docs.ansible.com/ansible/latest/collections/ansible/builtin/script_module.html#notes
         print(message, file=sys.stderr)
         logger.info("exit code: %d: %s", rc, message)
 
@@ -2243,6 +2256,15 @@ if __name__ == "__main__":
         type=str,
         help="prefix to add to volume name for snapshot",
     )
+    common_parser.add_argument(
+        "--vg-include",
+        dest="vg_include",
+        type=str,
+        help=(
+            "Used with --all - only include vgs whose names match the given"
+            "pattern.  Uses python re.search to match."
+        ),
+    )
 
     # Group parser
     group_parser = argparse.ArgumentParser(add_help=False)
@@ -2458,6 +2480,10 @@ if __name__ == "__main__":
     umount_parser.set_defaults(func=umount_cmd)
 
     args = parser.parse_args()
+    if args.vg_include:
+        VG_INCLUDE = re.compile(args.vg_include)
+    else:
+        VG_INCLUDE = None
     return_code, display_message = args.func(args)
     print_result(return_code, display_message)
 

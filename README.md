@@ -221,6 +221,15 @@ If set to true, unmount all mountpoint for the resulting blockdevice.
 Linux allows filesytems to be mounted in multiple locations.  Setting
 this flag will unmount all locations.
 
+### snapshot_lvm_vg_include
+
+When using `snapshot_lvm_all_vgs`, there may be some subset of all volume
+groups that you want to use.  Set `snapshot_lvm_vg_include` to a regex
+pattern that matches the names of the volume groups you want to use and
+the rest will be excluded.  For example,
+`snapshot_lvm_vg_include: "^sql_db_"` will only operate on volume groups
+whose names start with `sql_db_`.  This uses the Python `re.search`.
+
 ### Variables Exported by the Role
 
 #### snapshot_facts

@@ -42,4 +42,7 @@ __snapshot_cmd: "{{ 'snapshot.py ' ~ snapshot_lvm_action ~ ' ' ~
     if snapshot_lvm_mountpoint else '') ~ ' ' ~
   ('-g ' if snapshot_lvm_set else '') ~ ' ' ~
   (snapshot_lvm_set | to_json | quote
-    if snapshot_lvm_set else '') }}"
+    if snapshot_lvm_set else '') ~
+  ('--vg-include ' if snapshot_lvm_vg_include else '') ~ ' ' ~
+  (snapshot_lvm_vg_include | quote
+    if snapshot_lvm_vg_include else '') }}"

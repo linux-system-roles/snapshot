@@ -70,12 +70,22 @@
         var: __snapshot_failed_regex
         verbosity: 1
 
+    # The default output when using the script module with ssh connections
+    # goes to stdout, even though print_result uses sys.stderr.
+    # yamllint disable-line rule:line-length
+    # See https://docs.ansible.com/ansible/latest/collections/ansible/builtin/script_module.html#notes
+    # yamllint enable rule:line-length
+    # HOWEVER - when using -c local, the stdout and stderr are separate and
+    # the script error output goes to stderr - so we have to check both stdout
+    # and stderr below.
+    # This is another reason why this should be a module not a script
     - name: Verify return code and message is correct
       assert:
         that:
           - snapshot_cmd.failed
           - snapshot_cmd.rc != 0
-          - snapshot_cmd.stdout_lines is search(__snapshot_failed_regex)
+          - snapshot_cmd.stdout_lines is search(__snapshot_failed_regex) or
+            snapshot_cmd.stderr_lines is search(__snapshot_failed_regex)
         msg: "{{ __snapshot_failed_msg }}"
       when:
         - __snapshot_failed_regex is defined
