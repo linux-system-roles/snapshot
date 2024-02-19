@@ -82,11 +82,14 @@
     - name: Verify return code and message is correct
       assert:
         that:
-          - snapshot_cmd.failed
-          - snapshot_cmd.rc != 0
-          - snapshot_cmd.stdout_lines is search(__snapshot_failed_regex) or
-            snapshot_cmd.stderr_lines is search(__snapshot_failed_regex)
+          - snapshot_cmd_raw is failed
+          - snapshot_cmd["return_code"] != 0
+          - snapshot_cmd["errors"] is search(__snapshot_failed_regex)
         msg: "{{ __snapshot_failed_msg }}"
       when:
         - __snapshot_failed_regex is defined
         - __snapshot_failed_msg is defined
+
+    - name: Assert role reported changes correctly
+      assert:
+        that: snapshot_cmd["changed"] == __snapshot_failed_changed

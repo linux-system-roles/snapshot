@@ -28,6 +28,7 @@
               snapshot_all: true
               snapshot_lvm_snapset_name: snapset1
               snapshot_lvm_action: snapshot
+            __snapshot_failed_changed: false
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

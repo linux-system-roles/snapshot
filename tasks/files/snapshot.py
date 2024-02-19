@@ -94,9 +94,10 @@ class SnapshotStatus:
     ERROR_MOUNT_POINT_NOT_EXISTING = 32
     ERROR_MOUNT_NOT_BLOCKDEV = 33
     ERROR_MOUNT_INVALID_PARAMS = 34
-    ERROR_MOUNT_INUSE = 35
+    ERROR_MOUNT_POINT_ALREADY_MOUNTED = 35
     ERROR_MOUNT_VERIFY_FAILED = 36
     ERROR_UMOUNT_VERIFY_FAILED = 37
+    ERROR_UMOUNT_NOT_MOUNTED = 38
 
 
 def makedirs(path):
@@ -104,11 +105,55 @@ def makedirs(path):
         os.makedirs(path, 0o755)
 
 
-def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=False):
+def get_mounted_device(mount_target):
+    """If mount_target is mounted, return the device that is mounted.
+    If mount_target is not mounted, return None."""
+    with open("/proc/mounts") as pm:
+        for line in pm:
+            params = line.split(" ")
+            if mount_target == params[1]:
+                return params[0]
+    return None
+
+
+def mount(
+    blockdev,
+    mountpoint,
+    fstype=None,
+    options=None,
+    mountpoint_create=False,
+    check_mode=False,
+):
     mount_command = []
     mountpoint = os.path.normpath(mountpoint)
     if options is None:
         options = "defaults"
+
+    mounted_dev = get_mounted_device(mountpoint)
+    if mounted_dev:
+        try:
+            if os.path.samefile(blockdev, mounted_dev):
+                return (
+                    SnapshotStatus.ERROR_MOUNT_POINT_ALREADY_MOUNTED,
+                    mountpoint + " is already mounted at " + blockdev,
+                )
+            else:
+                return (
+                    SnapshotStatus.ERROR_MOUNT_FAILED,
+                    mountpoint
+                    + " is already mounted at different device "
+                    + mounted_dev,
+                )
+        except Exception as exc:
+            return (
+                SnapshotStatus.ERROR_MOUNT_FAILED,
+                "could not verify mountpoint "
+                + mountpoint
+                + " at "
+                + blockdev
+                + ": "
+                + str(exc),
+            )
 
     if not os.path.isdir(mountpoint):
         if not mountpoint_create:
@@ -132,17 +177,31 @@ def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=Fal
     mount_command.append(blockdev)
     mount_command.append(mountpoint)
 
+    if check_mode:
+        return SnapshotStatus.SNAPSHOT_OK, "Would run command " + " ".join(
+            mount_command
+        )
+
     rc, output = run_command(mount_command)
 
     if rc != 0:
-        logger.info("failed to mount: ".join(mount_command))
-        logger.info(output)
-        return (SnapshotStatus.ERROR_UMOUNT_FAILED, output)
+        logger.error("failed to mount: ".join(mount_command))
+        logger.error(output)
+        return SnapshotStatus.ERROR_MOUNT_FAILED, output
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def umount(umount_target, all_targets):
+def umount(umount_target, all_targets, check_mode):
+    mounted_dev = get_mounted_device(umount_target)
+    if not mounted_dev:
+        return (
+            SnapshotStatus.ERROR_UMOUNT_NOT_MOUNTED,
+            "not mounted " + umount_target,
+        )
+    else:
+        logger.info("umount target %s from device %s", umount_target, mounted_dev)
+
     umount_command = []
 
     umount_command.append("umount")
@@ -150,11 +209,16 @@ def umount(umount_target, all_targets):
     if all_targets:
         umount_command.append("-A")
 
+    if check_mode:
+        return SnapshotStatus.SNAPSHOT_OK, "Would run command " + " ".join(
+            umount_command
+        )
+
     rc, output = run_command(umount_command)
 
     if rc != 0:
-        logger.info("failed to unmount %s: %s", umount_target, output)
-        return (SnapshotStatus.ERROR_UMOUNT_FAILED, output)
+        logger.error("failed to unmount %s: %s", umount_target, output)
+        return SnapshotStatus.ERROR_UMOUNT_FAILED, output
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
@@ -351,8 +415,7 @@ def lvm_list_json(vg_name, lv_name):
 
     top_level["volumes"] = vg_dict
     top_level["mounts"] = fs_dict
-    print(json.dumps(top_level, indent=4))
-    return SnapshotStatus.SNAPSHOT_OK, ""
+    return SnapshotStatus.SNAPSHOT_OK, top_level
 
 
 def get_snapshot_name(lv_name, suffix):
@@ -473,7 +536,7 @@ def lvm_is_snapshot(vg_name, snapshot_name):
         return SnapshotStatus.SNAPSHOT_OK, False
 
 
-def lvm_snapshot_remove(vg_name, snapshot_name):
+def lvm_snapshot_remove(vg_name, snapshot_name, check_mode):
     rc, is_snapshot = lvm_is_snapshot(vg_name, snapshot_name)
 
     if rc != SnapshotStatus.SNAPSHOT_OK:
@@ -487,6 +550,9 @@ def lvm_snapshot_remove(vg_name, snapshot_name):
 
     remove_command = ["lvremove", "-y", vg_name + "/" + snapshot_name]
 
+    if check_mode:
+        return rc, "Would run command " + " ".join(remove_command)
+
     rc, output = run_command(remove_command)
 
     if rc:
@@ -495,7 +561,7 @@ def lvm_snapshot_remove(vg_name, snapshot_name):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def revert_lv(vg_name, snapshot_name):
+def revert_lv(vg_name, snapshot_name, check_mode):
     rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         raise LvmBug("'lvs' failed '%d'" % rc)
@@ -508,11 +574,14 @@ def revert_lv(vg_name, snapshot_name):
             )
     else:
         return (
-            SnapshotStatus.ERROR_REVERT_FAILED,
+            SnapshotStatus.ERROR_LV_NOTFOUND,
             "snapshot not found with name: " + vg_name + "/" + snapshot_name,
         )
 
     revert_command = ["lvconvert", "--merge", vg_name + "/" + snapshot_name]
+
+    if check_mode:
+        return rc, "Would run command " + " ".join(revert_command)
 
     rc, output = run_command(revert_command)
 
@@ -522,8 +591,9 @@ def revert_lv(vg_name, snapshot_name):
     return SnapshotStatus.SNAPSHOT_OK, output
 
 
-def revert_lvs(vg_name, lv_name, suffix):
+def revert_lvs(vg_name, lv_name, suffix, check_mode):
     # Revert snapshots
+    changed = False
     for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
         for lv in lv_list:
             lv_item_name = lv["lv_name"]
@@ -539,33 +609,41 @@ def revert_lvs(vg_name, lv_name, suffix):
             if not lv_item_name.endswith(suffix):
                 continue
 
-            rc, message = revert_lv(vg["vg_name"], lv_item_name)
+            rc, message = revert_lv(vg["vg_name"], lv_item_name, check_mode)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return rc, message
+                if rc == SnapshotStatus.ERROR_LV_NOTFOUND:
+                    rc = SnapshotStatus.SNAPSHOT_OK  # already removed or reverted
+                return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+            # if we got here at least 1 snapshot was reverted
+            changed = True
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
-def extend_lv_snapshot(vg_name, lv_name, suffix, percent_space_required):
+def extend_lv_snapshot(vg_name, lv_name, suffix, percent_space_required, check_mode):
     snapshot_name = get_snapshot_name(lv_name, suffix)
 
     rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
 
+    changed = False
     if lv_exists:
         if not lvm_is_snapshot(vg_name, snapshot_name):
             return (
                 SnapshotStatus.ERROR_EXTEND_NOT_SNAPSHOT,
                 "LV with name: " + vg_name + "/" + snapshot_name + " is not a snapshot",
+                changed,
             )
     else:
         return (
             SnapshotStatus.ERROR_EXTEND_NOT_FOUND,
             "snapshot not found with name: " + vg_name + "/" + snapshot_name,
+            changed,
         )
     rc, _message, current_space_dict = get_current_space_state()
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, "extend_lv get_space_state failure"
+        return rc, "extend_lv get_space_state failure", changed
 
     current_size = current_space_dict[vg_name].lvs[snapshot_name].lv_size
     required_size = get_space_needed(
@@ -573,7 +651,8 @@ def extend_lv_snapshot(vg_name, lv_name, suffix, percent_space_required):
     )
 
     if current_size >= required_size:
-        return SnapshotStatus.SNAPSHOT_OK, ""
+        # rare case of OK return and no change
+        return SnapshotStatus.SNAPSHOT_OK, "", changed
 
     extend_command = [
         "lvextend",
@@ -582,12 +661,15 @@ def extend_lv_snapshot(vg_name, lv_name, suffix, percent_space_required):
         vg_name + "/" + snapshot_name,
     ]
 
+    if check_mode:
+        return rc, "Would run command " + " ".join(extend_command), changed
+
     rc, output = run_command(extend_command)
 
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return SnapshotStatus.ERROR_EXTEND_FAILED, output
+        return SnapshotStatus.ERROR_EXTEND_FAILED, output, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, output
+    return SnapshotStatus.SNAPSHOT_OK, output, True  # changed
 
 
 def extend_check_size(vg_name, lv_name, snapshot_name, percent_space_required):
@@ -613,22 +695,28 @@ def extend_check_size(vg_name, lv_name, snapshot_name, percent_space_required):
     return SnapshotStatus.SNAPSHOT_OK, False, "current size too small"
 
 
-def extend_snapshot_set(snapset_json):
+def extend_snapshot_set(snapset_json, check_mode):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
     logger.info("extend snapsset : %s", snapset_name)
 
+    changed = False
     for list_item in volume_list:
         vg = list_item["vg"]
         lv = list_item["lv"]
         percent_space_required = list_item["percent_space_required"]
 
-        rc, message = extend_lv_snapshot(vg, lv, snapset_name, percent_space_required)
+        rc, message, cmd_changed = extend_lv_snapshot(
+            vg, lv, snapset_name, percent_space_required, check_mode
+        )
+
+        if cmd_changed:
+            changed = True
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
 def extend_verify_snapshot_set(snapset_json):
@@ -752,8 +840,9 @@ def extend_verify_snapshots(vg_name, lv_name, suffix, percent_space_required):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def extend_lvs(vg_name, lv_name, suffix, required_space):
+def extend_lvs(vg_name, lv_name, suffix, required_space, check_mode):
     # Extend snapshots
+    changed = False
     for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
         for lv in lv_list:
             lv = lv["lv_name"]
@@ -767,15 +856,20 @@ def extend_lvs(vg_name, lv_name, suffix, required_space):
             if is_snapshot:
                 continue
 
-            rc, message = extend_lv_snapshot(vg["vg_name"], lv, suffix, required_space)
+            rc, message, cmd_changed = extend_lv_snapshot(
+                vg["vg_name"], lv, suffix, required_space, check_mode
+            )
+
+            if cmd_changed:
+                changed = True
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return rc, message
+                return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
-def snapshot_lv(vg_name, lv_name, suffix, snap_size):
+def snapshot_lv(vg_name, lv_name, suffix, snap_size, check_mode):
     snapshot_name = get_snapshot_name(lv_name, suffix)
 
     rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
@@ -801,6 +895,9 @@ def snapshot_lv(vg_name, lv_name, suffix, snap_size):
         str(snap_size) + "B",
         vg_name + "/" + lv_name,
     ]
+
+    if check_mode:
+        return rc, "Would run command " + " ".join(snapshot_command)
 
     rc, output = run_command(snapshot_command)
 
@@ -986,21 +1083,27 @@ def check_verify_lvs_completed(snapshot_all, vg_name, lv_name, suffix):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def revert_snapshot_set(snapset_json):
+def revert_snapshot_set(snapset_json, check_mode):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
     logger.info("revert snapsset : %s", snapset_name)
 
+    changed = False
     for list_item in volume_list:
         vg = list_item["vg"]
         lv = list_item["lv"]
 
-        rc, message = revert_lv(vg, get_snapshot_name(lv, snapset_name))
+        rc, message = revert_lv(vg, get_snapshot_name(lv, snapset_name), check_mode)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            if rc == SnapshotStatus.ERROR_LV_NOTFOUND:
+                rc = SnapshotStatus.SNAPSHOT_OK  # already removed or reverted
+            return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+        # if we got here at least 1 snapshot was reverted
+        changed = True
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
 def umount_verify(mountpoint, vg_name, lv_to_check):
@@ -1025,24 +1128,30 @@ def umount_verify(mountpoint, vg_name, lv_to_check):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def umount_lv(umount_target, vg_name, lv_name, all_targets):
+def umount_lv(umount_target, vg_name, lv_name, all_targets, check_mode):
     logger.info("umount_lv : %s", umount_target)
 
+    changed = False
     if vg_name and lv_name:
         # Check to make sure all the source vgs/lvs exist
         rc, message = verify_source_lvs_exist(vg_name, lv_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
-    return umount(umount_target, all_targets)
+    rc, message = umount(umount_target, all_targets, check_mode)
+    changed = rc == SnapshotStatus.SNAPSHOT_OK
+    if rc == SnapshotStatus.ERROR_UMOUNT_NOT_MOUNTED:
+        rc = SnapshotStatus.SNAPSHOT_OK  # already unmounted - not an error
+    return rc, message, changed
 
 
-def umount_snapshot_set(snapset_json, verify_only):
+def umount_snapshot_set(snapset_json, verify_only, check_mode):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
 
     logger.info("mount verify snapsset : %s", snapset_name)
 
+    changed = False
     for list_item in volume_list:
         vg_name = list_item["vg"]
         lv_name = list_item["lv"]
@@ -1052,6 +1161,7 @@ def umount_snapshot_set(snapset_json, verify_only):
             return (
                 SnapshotStatus.ERROR_UMOUNT_VERIFY_FAILED,
                 "set item must provide a mountpoint for : " + vg_name + "/" + lv_name,
+                changed,
             )
 
         if "all_targets" in list_item:
@@ -1073,20 +1183,27 @@ def umount_snapshot_set(snapset_json, verify_only):
         if verify_only:
             rc, message = umount_verify(mountpoint, vg_name, lv_to_check)
         else:
-            rc, message = umount_lv(mountpoint, vg_name, lv_to_check, all_targets)
+            rc, message, cmd_changed = umount_lv(
+                mountpoint, vg_name, lv_to_check, all_targets, check_mode
+            )
+            if cmd_changed:
+                changed = True
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
-def mount_snapshot_set(snapset_json, verify_only, cmdline_mountpoint_create):
+def mount_snapshot_set(
+    snapset_json, verify_only, cmdline_mountpoint_create, check_mode
+):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
 
     logger.info("mount verify snapsset : %s", snapset_name)
 
+    changed = False
     for list_item in volume_list:
         vg_name = list_item["vg"]
         lv_name = list_item["lv"]
@@ -1120,6 +1237,7 @@ def mount_snapshot_set(snapset_json, verify_only, cmdline_mountpoint_create):
             return (
                 SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
                 "set item must provide a mountpoint for : " + vg_name + "/" + lv_name,
+                changed,
             )
 
         if origin:
@@ -1134,7 +1252,7 @@ def mount_snapshot_set(snapset_json, verify_only, cmdline_mountpoint_create):
                 origin, mountpoint, blockdev, vg_name, lv_name, snapset_name
             )
         else:
-            rc, message = mount_lv(
+            rc, message, cmd_changed = mount_lv(
                 mountpoint_create,
                 origin,
                 mountpoint,
@@ -1144,11 +1262,15 @@ def mount_snapshot_set(snapset_json, verify_only, cmdline_mountpoint_create):
                 vg_name,
                 lv_name,
                 snapset_name,
+                check_mode,
             )
-        if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            if cmd_changed:
+                changed = True
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message, changed
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
 def mount_verify(origin, mountpoint, blockdev, vg_name, lv_name, snapset_name):
@@ -1228,13 +1350,16 @@ def mount_lv(
     vg_name,
     lv_name,
     snapset_name,
+    check_mode,
 ):
     logger.info("mount_lv : %s", mountpoint)
 
+    changed = False
     if not blockdev and (not vg_name or not lv_name):
         return (
             SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
             "must provide blockdev or vg/lv for mount source",
+            changed,
         )
 
     if vg_name and lv_name:
@@ -1246,7 +1371,7 @@ def mount_lv(
         # Check to make sure all the source vgs/lvs exist
         rc, message = verify_source_lvs_exist(vg_name, lv_to_mount)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
         blockdev = path_join(DEV_PREFIX, vg_name, lv_to_mount)
     else:
@@ -1255,25 +1380,31 @@ def mount_lv(
             return (
                 SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
                 "blockdev parameter is not a block device",
+                changed,
             )
 
     if not blockdev:
         return (
             SnapshotStatus.ERROR_MOUNT_NOT_BLOCKDEV,
             "blockdev or vg/lv is a required",
+            changed,
         )
 
-    rc, message = mount(blockdev, mountpoint, fstype, options, create)
+    rc, message = mount(blockdev, mountpoint, fstype, options, create, check_mode)
+    changed = rc == SnapshotStatus.SNAPSHOT_OK
+    if rc == SnapshotStatus.ERROR_MOUNT_POINT_ALREADY_MOUNTED:
+        rc = SnapshotStatus.SNAPSHOT_OK  # this is ok
 
-    return rc, message
+    return rc, message, changed
 
 
-def remove_snapshot_set(snapset_json):
+def remove_snapshot_set(snapset_json, check_mode):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
     logger.info("remove snapsset : %s", snapset_name)
 
     # check to make sure the set is removable before attempting to remove
+    changed = False
     for list_item in volume_list:
         vg = list_item["vg"]
         lv = list_item["lv"]
@@ -1282,7 +1413,7 @@ def remove_snapshot_set(snapset_json):
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, "failed to get LV status"
+            return rc, "failed to get LV status", changed
 
         # if there is no snapshot, continue (idempotent)
         if not vg_exists or not lv_exists:
@@ -1291,12 +1422,13 @@ def remove_snapshot_set(snapset_json):
         rc, in_use = lvm_is_inuse(vg, snapshot_name)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, "failed to lvm_is_inuse status"
+            return rc, "failed to lvm_is_inuse status", changed
 
         if in_use:
             return (
                 SnapshotStatus.ERROR_REMOVE_FAILED_INUSE,
                 "volume is in use: " + vg + "/" + snapshot_name,
+                changed,
             )
 
     for list_item in volume_list:
@@ -1307,18 +1439,21 @@ def remove_snapshot_set(snapset_json):
 
         rc, vg_exists, lv_exists = lvm_lv_exists(vg, snapshot_name)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, "failed to get LV status"
+            return rc, "failed to get LV status", changed
 
         # if there is no snapshot, continue (idempotent)
         if not vg_exists or not lv_exists:
             continue
 
-        rc, message = lvm_snapshot_remove(vg, snapshot_name)
+        rc, message = lvm_snapshot_remove(vg, snapshot_name, check_mode)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+        # if we got here, at least 1 snapshot was removed
+        changed = True
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
 def remove_verify_snapshot_set(snapset_json):
@@ -1349,7 +1484,7 @@ def remove_verify_snapshot_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def remove_snapshots(volume_group, logical_volume, suffix):
+def remove_snapshots(volume_group, logical_volume, suffix, check_mode):
     rc = SnapshotStatus.SNAPSHOT_OK
     message = ""
 
@@ -1358,6 +1493,7 @@ def remove_snapshots(volume_group, logical_volume, suffix):
     else:
         search_lv_name = None
 
+    changed = False
     for vg, lv_list in vgs_lvs_iterator(volume_group, search_lv_name):
         vg_name = vg["vg_name"]
 
@@ -1367,15 +1503,18 @@ def remove_snapshots(volume_group, logical_volume, suffix):
             if not lvm_is_owned(lv_name, suffix):
                 continue
 
-            rc, message = lvm_snapshot_remove(vg_name, lv_name)
+            rc, message = lvm_snapshot_remove(vg_name, lv_name, check_mode)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 break
 
+            # if we got here, at least 1 snapshot was removed
+            changed = True
+
         if volume_group:
             break
 
-    return rc, message
+    return rc, message, changed
 
 
 def remove_verify_snapshots(vg_name, lv_name, suffix):
@@ -1509,14 +1648,24 @@ def verify_snapset_target_no_existing(snapset_json):
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return (
                 rc,
-                "volume exists that matches the pattern: " + vg + "/" + snapshot_name,
+                "could not determine if snapshot exists: " + vg + "/" + snapshot_name,
             )
 
         if lv_exists:
-            return (
-                SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED,
-                "volume exists that matches the pattern: " + vg + "/" + snapshot_name,
-            )
+            rc, exists = lvm_is_snapshot(vg, snapshot_name)
+            if rc == SnapshotStatus.SNAPSHOT_OK and exists:
+                return (
+                    SnapshotStatus.ERROR_ALREADY_EXISTS,
+                    "snapshot already exists: " + vg + "/" + snapshot_name,
+                )
+            else:
+                return (
+                    SnapshotStatus.ERROR_SNAPSET_CHECK_STATUS_FAILED,
+                    "volume exists that matches the pattern: "
+                    + vg
+                    + "/"
+                    + snapshot_name,
+                )
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
@@ -1646,13 +1795,16 @@ def snapshot_precheck_lv_set(snapset_json):
     return SnapshotStatus.SNAPSHOT_OK, "", current_space_dict
 
 
-def snapshot_create_set(snapset_json):
+def snapshot_create_set(snapset_json, check_mode):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
+    changed = False
 
     rc, message, current_space_dict = snapshot_precheck_lv_set(snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, message
+        if rc == SnapshotStatus.ERROR_ALREADY_EXISTS:
+            rc = SnapshotStatus.SNAPSHOT_OK
+        return rc, message, changed
 
     # Take snapshots
     for list_item in volume_list:
@@ -1665,30 +1817,33 @@ def snapshot_create_set(snapset_json):
             vg, lv, percent_space_required, current_space_dict
         )
 
-        rc, message = snapshot_lv(vg, lv, snapset_name, required_size)
+        rc, message = snapshot_lv(vg, lv, snapset_name, required_size, check_mode)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return rc, message, changed
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+        # if we got here, at least 1 snapshot was created
+        changed = True
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
-def snapshot_set(snapset_json):
+def snapshot_set(snapset_json, check_mode):
+    changed = False
     rc, message = verify_snapset_source_lvs_exist(snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, message
+        return rc, message, changed
 
-    rc, message = snapshot_create_set(snapset_json)
-    if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, message
+    rc, message, changed = snapshot_create_set(snapset_json, check_mode)
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
+    return rc, message, changed
 
 
-def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix):
+def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix, check_mode):
     # check to make sure there is space and no name conflicts
+    changed = False
     rc, message = check_lvs(required_space, vg_name, lv_name, suffix)
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, message
+        return rc, message, changed
 
     vg_found = False
     lv_found = False
@@ -1713,82 +1868,98 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix):
             )
 
             rc, message = snapshot_lv(
-                vg["vg_name"],
-                lv["lv_name"],
-                suffix,
-                snap_size,
+                vg["vg_name"], lv["lv_name"], suffix, snap_size, check_mode
             )
 
-            # TODO: Should the exiting snapshot be removed and be updated?
+            # TODO: Should the existing snapshot be removed and be updated?
+            # richm - IMO no - Ansible idempotence requires that the task should
+            # report "changed": false for this snapshot - user can use `list`
+            # to get list of existing snapshots, and use `remove` if they
+            # want to remove and recreate
             if rc == SnapshotStatus.ERROR_ALREADY_EXISTS:
                 continue
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
-                return rc, message
+                return rc, message, changed
+
+            # if we got here, then at least 1 snapshot was created
+            changed = True
 
     if not snapshot_all:
         if vg_name and not vg_found:
-            return SnapshotStatus.ERROR_VG_NOTFOUND, "volume group does not exist"
+            return (
+                SnapshotStatus.ERROR_VG_NOTFOUND,
+                "volume group does not exist: " + vg_name,
+                changed,
+            )
         if lv_name and not lv_found:
-            return SnapshotStatus.ERROR_LV_NOTFOUND, "logical volume does not exist"
+            return (
+                SnapshotStatus.ERROR_LV_NOTFOUND,
+                "logical volume does not exist: " + lv_name,
+                changed,
+            )
 
-    return SnapshotStatus.SNAPSHOT_OK, ""
-
-
-def validate_snapset_args(args):
-    if args.set_json is None:
-        print("%s snapset command requires -group parameter", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
 
 
 def validate_args(args):
+    rc = SnapshotStatus.ERROR_CMD_INVALID
     if args.all and args.volume_group:
-        print("-all and --volume_group are mutually exclusive: ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+        return (
+            rc,
+            "--all and --volume_group are mutually exclusive for operation "
+            + args.operation,
+        )
 
     if not args.all and args.volume_group is None and args.suffix is None:
-        print(
-            "must specify either --all, --volume_group or --snapset: ", args.operation
+        return (
+            rc,
+            "must specify either --all, --volume_group or --snapset for operation "
+            + args.operation,
         )
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
 
     if not args.all and args.volume_group is None and args.logical_volume:
-        print("--logical_volume requires --volume_group parameter : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+        return (
+            rc,
+            "--logical_volume requires --volume_group parameter for operation "
+            + args.operation,
+        )
 
     if not args.suffix:
-        print("--snapset is required : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+        return rc, "--snapset is required for operation " + args.operation
 
     if len(args.suffix) == 0:
-        print("Snapset name must be provided : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+        return rc, "Snapset name must be provided for operation " + args.operation
 
     # not all commands include required_space
     if hasattr(args, "required_space"):
         rc, message, _required_space = get_required_space(args.required_space)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            print(message)
-            sys.exit(SnapshotStatus.ERROR_CMD_INVALID)
+            return rc, message
 
-    return True
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def validate_umount_args(args):
     if not args.mountpoint and not args.blockdev:
-        print("--mountpoint or --blockdev is required : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+        return (
+            SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+            "--mountpoint or --blockdev is required",
+        )
+
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def validate_mount_args(args):
     if not args.blockdev and (not args.volume_group or not args.logical_volume):
-        print("must provide blockdev or vg/lv for mount source : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+        return (
+            SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
+            "must provide blockdev or vg/lv for mount source",
+        )
 
     if not args.mountpoint:
-        print("mountpoint is required : ", args.operation)
-        sys.exit(SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS)
+        return SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS, "mountpoint is required"
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
@@ -1814,16 +1985,9 @@ def get_required_space(required_space_str):
     return SnapshotStatus.SNAPSHOT_OK, "", percent_space_required
 
 
-def print_result(rc, message):
-    if rc != SnapshotStatus.SNAPSHOT_OK:
-        # NOTICE - even though this says stderr, if this is called via the
-        # Ansible builtin.script module, with the ssh connection plugin (the default),
-        # then the stderr output will be joined with stdout.  HOWEVER - if running
-        # with -c local, then stdout and stderr will be separated into different
-        # channels.
-        # See https://docs.ansible.com/ansible/latest/collections/ansible/builtin/script_module.html#notes
-        print(message, file=sys.stderr)
-        logger.info("exit code: %d: %s", rc, message)
+def print_result(result):
+    json.dump(result, sys.stdout, indent=4)
+    logger.info("exit code: %d: %s", result["return_code"], str(result["errors"]))
 
 
 def validate_json_request(snapset_json, check_percent_space_required):
@@ -1906,7 +2070,7 @@ def validate_snapset_json(cmd, snapset, verify_only):
         rc, message = validate_json_umount_request(snapset_json)
     else:
         rc = SnapshotStatus.ERROR_UNKNOWN_FAILURE
-        message = "validate_snapset_json"
+        message = "validate_snapset_json for command " + cmd
 
     logger.info("snapset %s", snapset_json)
     return rc, message, snapset_json
@@ -1914,37 +2078,42 @@ def validate_snapset_json(cmd, snapset, verify_only):
 
 def snapshot_cmd(args):
     logger.info(
-        "snapshot_cmd: %s %s %s %s %s %s",
+        "snapshot_cmd: %s %s %s %s %s %s %s",
         args.operation,
         args.required_space,
         args.volume_group,
         args.logical_volume,
         args.suffix,
         args.set_json,
+        args.check_mode,
     )
 
     if args.set_json is None:
-        validate_args(args)
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": False}
+
         rc, message, required_space = get_required_space(args.required_space)
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": False}
 
-        rc, message = snapshot_lvs(
+        rc, message, changed = snapshot_lvs(
             required_space,
             args.all,
             args.volume_group,
             args.logical_volume,
             args.suffix,
+            args.check_mode,
         )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.SNAPSHOT, args.set_json, False
         )
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
-        rc, message = snapshot_set(snapset_json)
+            return {"return_code": rc, "errors": [message], "changed": False}
+        rc, message, changed = snapshot_set(snapset_json, args.check_mode)
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 def check_cmd(args):
@@ -1960,7 +2129,9 @@ def check_cmd(args):
     )
 
     if args.set_json is None:
-        validate_args(args)
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": False}
 
         if args.verify:
             rc, message = check_verify_lvs_completed(
@@ -1981,14 +2152,14 @@ def check_cmd(args):
             SnapshotCommand.CHECK, args.set_json, args.verify
         )
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": False}
 
         if args.verify:
             rc, message = check_verify_lvs_set(snapset_json)
         else:
             rc, message, _current_space_dict = snapshot_precheck_lv_set(snapset_json)
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": False}
 
 
 def remove_cmd(args):
@@ -2002,31 +2173,44 @@ def remove_cmd(args):
         args.set_json,
     )
 
+    changed = False
     if args.set_json is None:
-        validate_args(args)
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": changed}
+
         if args.all and args.volume_group:
-            print("--all and --volume_group are mutually exclusive: ", args.operation)
-            sys.exit(1)
+            return {
+                "return_code": SnapshotStatus.ERROR_CMD_INVALID,
+                "errors": [
+                    "--all and --volume_group are mutually exclusive for operation "
+                    + args.operation
+                ],
+                "changed": changed,
+            }
 
         if args.verify:
-            return remove_verify_snapshots(
+            rc, message = remove_verify_snapshots(
                 args.volume_group, args.logical_volume, args.suffix
             )
         else:
-            return remove_snapshots(args.volume_group, args.logical_volume, args.suffix)
+            rc, message, changed = remove_snapshots(
+                args.volume_group, args.logical_volume, args.suffix, args.check_mode
+            )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.REMOVE, args.set_json, args.verify
         )
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = remove_verify_snapshot_set(snapset_json)
         else:
-            rc, message = remove_snapshot_set(snapset_json)
-    return rc, message
+            rc, message, changed = remove_snapshot_set(snapset_json, args.check_mode)
+
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 def revert_cmd(args):
@@ -2040,8 +2224,11 @@ def revert_cmd(args):
         args.set_json,
     )
 
+    changed = False
     if args.set_json is None:
-        validate_args(args)
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = remove_verify_snapshots(
@@ -2050,24 +2237,24 @@ def revert_cmd(args):
                 args.suffix,
             )
         else:
-            rc, message = revert_lvs(
-                args.volume_group, args.logical_volume, args.suffix
+            rc, message, changed = revert_lvs(
+                args.volume_group, args.logical_volume, args.suffix, args.check_mode
             )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.CHECK, args.set_json, args.verify
         )
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             # revert re-uses the remove verify since both commands should
             # cause the snapshot to no longer exist
             rc, message = remove_verify_snapshot_set(snapset_json)
         else:
-            rc, message = revert_snapshot_set(snapset_json)
+            rc, message, changed = revert_snapshot_set(snapset_json, args.check_mode)
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 def extend_cmd(args):
@@ -2081,8 +2268,11 @@ def extend_cmd(args):
         args.set_json,
     )
 
+    changed = False
     if args.set_json is None:
-        validate_args(args)
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = extend_verify_snapshots(
@@ -2092,25 +2282,26 @@ def extend_cmd(args):
                 args.required_space,
             )
         else:
-            rc, message = extend_lvs(
+            rc, message, changed = extend_lvs(
                 args.volume_group,
                 args.logical_volume,
                 args.suffix,
                 args.required_space,
+                args.check_mode,
             )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.CHECK, args.set_json, args.verify
         )
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = extend_verify_snapshot_set(snapset_json)
         else:
-            rc, message = extend_snapshot_set(snapset_json)
+            rc, message, changed = extend_snapshot_set(snapset_json, args.check_mode)
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 def list_cmd(args):
@@ -2125,16 +2316,19 @@ def list_cmd(args):
     )
 
     if args.set_json is None:
-        validate_args(args)
-        rc, message = lvm_list_json(
+        rc, message = validate_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": False}
+
+        rc, data = lvm_list_json(
             args.volume_group,
             args.logical_volume,
         )
     else:
         # TODO filter the set based on the JSON
-        rc, message = lvm_list_json(None, None)
+        rc, data = lvm_list_json(None, None)
 
-    return rc, message
+    return {"return_code": rc, "errors": [], "data": data, "changed": False}
 
 
 def mount_cmd(args):
@@ -2153,8 +2347,11 @@ def mount_cmd(args):
         args.set_json,
     )
 
+    changed = False
     if args.set_json is None:
-        validate_mount_args(args)
+        rc, message = validate_mount_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = mount_verify(
@@ -2166,7 +2363,7 @@ def mount_cmd(args):
                 args.suffix,
             )
         else:
-            rc, message = mount_lv(
+            rc, message, changed = mount_lv(
                 args.create,
                 args.origin,
                 args.mountpoint,
@@ -2176,17 +2373,20 @@ def mount_cmd(args):
                 args.volume_group,
                 args.logical_volume,
                 args.suffix,
+                args.check_mode,
             )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.MOUNT, args.set_json, args.verify
         )
         if rc != SnapshotStatus.SNAPSHOT_OK:
-            return rc, message
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
-        rc, message = mount_snapshot_set(snapset_json, args.verify, args.create)
+        rc, message, changed = mount_snapshot_set(
+            snapset_json, args.verify, args.create, args.check_mode
+        )
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 def umount_cmd(args):
@@ -2198,8 +2398,11 @@ def umount_cmd(args):
         args.volume_group,
         args.set_json,
     )
+    changed = False
     if args.set_json is None:
-        validate_umount_args(args)
+        rc, message = validate_umount_args(args)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return {"return_code": rc, "errors": [message], "changed": changed}
 
         if args.verify:
             rc, message = umount_verify(
@@ -2212,16 +2415,22 @@ def umount_cmd(args):
                 umount_target = args.mountpoint
             else:
                 umount_target = args.blockdev
-            rc, message = umount_lv(
-                umount_target, args.volume_group, args.logical_volume, args.all_targets
+            rc, message, changed = umount_lv(
+                umount_target,
+                args.volume_group,
+                args.logical_volume,
+                args.all_targets,
+                args.check_mode,
             )
     else:
         rc, message, snapset_json = validate_snapset_json(
             SnapshotCommand.UMOUNT, args.set_json, False
         )
-        rc, message = umount_snapshot_set(snapset_json, args.verify)
+        rc, message, changed = umount_snapshot_set(
+            snapset_json, args.verify, args.check_mode
+        )
 
-    return rc, message
+    return {"return_code": rc, "errors": [message], "changed": changed}
 
 
 if __name__ == "__main__":
@@ -2264,6 +2473,13 @@ if __name__ == "__main__":
             "Used with --all - only include vgs whose names match the given"
             "pattern.  Uses python re.search to match."
         ),
+    )
+    common_parser.add_argument(
+        "--check-mode",
+        action="store_true",
+        default=False,
+        dest="check_mode",
+        help="Are we running in Ansible check-mode?",
     )
 
     # Group parser
@@ -2484,7 +2700,7 @@ if __name__ == "__main__":
         VG_INCLUDE = re.compile(args.vg_include)
     else:
         VG_INCLUDE = None
-    return_code, display_message = args.func(args)
-    print_result(return_code, display_message)
+    result = args.func(args)
+    print_result(result)
 
-    sys.exit(return_code)
+    sys.exit(result["return_code"])

@@ -32,6 +32,7 @@
                   - name: snapshot VG1 LV1
                     vg: test_vg1
                     lv: lv1
+            __snapshot_failed_changed: false
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

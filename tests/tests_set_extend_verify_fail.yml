@@ -55,6 +55,7 @@
               snapshot_lvm_action: extend
               snapshot_lvm_verify_only: true
               __snapshot_lvm_set: "{{ snapshot_test_verify_set }}"
+            __snapshot_failed_changed: false
 
       always:
         - name: Cleanup

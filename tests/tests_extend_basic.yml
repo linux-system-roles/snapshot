@@ -65,6 +65,10 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: extend
 
+        - name: Assert changes for extend
+          assert:
+            that: snapshot_cmd["changed"]
+
         - name: Use the snapshot_lvm_verify option to make sure extend is done
           include_role:
             name: linux-system-roles.snapshot
@@ -74,6 +78,38 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: extend
+
+        - name: Assert no changes for extend verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Extend again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: extend
+
+        - name: Assert no changes for extend
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Verify extend again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: extend
+
+        - name: Assert no changes for extend verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

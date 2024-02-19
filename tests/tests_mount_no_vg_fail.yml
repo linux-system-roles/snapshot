@@ -40,6 +40,7 @@
               snapshot_lvm_lv: lv1
               snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
               snapshot_lvm_mountpoint_create: true
+            __snapshot_failed_changed: false
 
         - name: Remove the snapshot LVs
           include_role:

@@ -31,6 +31,7 @@
                     vg: test_vg1
                     lv: lv1
                     percent_space_required: 50
+            __snapshot_failed_changed: false
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

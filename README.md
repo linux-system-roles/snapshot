@@ -33,12 +33,14 @@ This variable is required. It supports one of the following values:
 
 - `remove`: Remove snapshots that conform to the specified prefix and pattern
 
-- `revert`: Revert to snapshots that are specifed by either the pattern or set.  If either the source LV or
-            snapshot are open, the merge is deferred until the next time the server reboots and the
-            source logical volume is activated.
+- `revert`: Revert to snapshots that are specified by either the pattern or set.
+            If either the source LV or snapshot are open, the merge is deferred
+            until the next time the server reboots and the source logical volume
+            is activated.
 
-- `extend`: Extend snapshot to have at least snapshot_lvm_percent_space_required space allocated to the
-            snapshot.  Allocations are rounded up to the next multiple of the volume group extent size.
+- `extend`: Extend snapshot to have at least snapshot_lvm_percent_space_required
+            space allocated to the snapshot.  Allocations are rounded up to the
+            next multiple of the volume group extent size.
 
 ### snapshot_lvm_set
 
@@ -107,8 +109,6 @@ that it applies, for example:
 
 The mount_origin flag defaults to false, so it is not necessary when the user is mounting the
 snapshot rather than the origin.
-
-If before running the role, with :
 
 ### snapshot_lvm_snapset_name
 
@@ -218,7 +218,7 @@ When used inside of a snapset definition, use mount_origin parameter.
 ### snapshot_lvm_unmount_all
 
 If set to true, unmount all mountpoint for the resulting blockdevice.
-Linux allows filesytems to be mounted in multiple locations.  Setting
+Linux allows filesystems to be mounted in multiple locations.  Setting
 this flag will unmount all locations.
 
 ### snapshot_lvm_vg_include

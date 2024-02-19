@@ -75,6 +75,25 @@
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
             snapshot_lvm_mountpoint_create: true
 
+        - name: Assert changes for mount
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Mount the snapshot for lv1 again for idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
+            snapshot_lvm_mountpoint_create: true
+
+        - name: Assert no changes for mount
+          assert:
+            that: not snapshot_cmd["changed"]
+
         - name: Mount the snapshot for lv2
           include_role:
             name: linux-system-roles.snapshot
@@ -164,6 +183,24 @@
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
+
+        - name: Assert changes for umount
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Umount the snapshot for lv1 again for idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
+
+        - name: Assert no changes for umount
+          assert:
+            that: not snapshot_cmd["changed"]
 
         - name: Umount the snapshot for lv2
           include_role:
