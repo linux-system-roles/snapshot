@@ -47,6 +47,10 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
 
+        - name: Assert changes for creation
+          assert:
+            that: snapshot_cmd["changed"]
+
         - name: Verify the snapshot LVs are created
           include_role:
             name: linux-system-roles.snapshot
@@ -56,12 +60,42 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
 
+        - name: Run the snapshot role again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+
+        - name: Assert no changes for creation
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Verify again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Assert no changes for verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
         - name: Run the snapshot role remove the snapshot LVs
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: remove
+
+        - name: Assert changes for removal
+          assert:
+            that: snapshot_cmd["changed"]
 
         - name: Use the snapshot_lvm_verify option to make sure remove is done
           include_role:
@@ -70,6 +104,30 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: remove
+
+        - name: Remove again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: remove
+
+        - name: Assert no changes for remove
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Verify remove again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+
+        - name: Assert no changes for remove verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

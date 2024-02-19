@@ -77,6 +77,10 @@
             snapshot_lvm_action: revert
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
+        - name: Assert changes for revert
+          assert:
+            that: snapshot_cmd["changed"]
+
         - name: Verify the revert is done with snapshot_lvm_verify_only
           include_role:
             name: linux-system-roles.snapshot
@@ -84,6 +88,32 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: revert
             snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Revert the set again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: revert
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for revert
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Run the snapshot role remove the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Run the snapshot role to verify the set is removed
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
 
       always:
         - name: Cleanup

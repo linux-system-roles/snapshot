@@ -63,6 +63,10 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: list
 
+        - name: Assert no changes for list
+          assert:
+            that: not snapshot_cmd["changed"]
+
         - name: Run the snapshot role remove the snapshot LVs
           include_role:
             name: linux-system-roles.snapshot

@@ -96,6 +96,10 @@
             snapshot_lvm_action: extend
             snapshot_lvm_set: "{{ snapshot_extend_set }}"
 
+        - name: Assert changes for extend
+          assert:
+            that: snapshot_cmd["changed"]
+
         - name: Verify the extend is done
           include_role:
             name: linux-system-roles.snapshot
@@ -103,6 +107,32 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: extend
             snapshot_lvm_set: "{{ snapshot_extend_set }}"
+
+        - name: Extend the set again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: extend
+            snapshot_lvm_set: "{{ snapshot_extend_set }}"
+
+        - name: Assert no changes for extend
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Run the snapshot role remove the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_extend_set }}"
+
+        - name: Run the snapshot role to verify the set is removed
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_extend_set }}"
+            snapshot_lvm_verify_only: true
 
       always:
         - name: Cleanup

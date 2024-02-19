@@ -17,6 +17,7 @@ __snapshot_required_facts_subsets: "{{ ['!all', '!min'] +
   __snapshot_required_facts }}"
 
 __snapshot_cmd: "{{ 'snapshot.py ' ~ snapshot_lvm_action ~ ' ' ~
+  ('--check-mode ' if ansible_check_mode else '') ~
   ('-a ' if snapshot_lvm_all_vgs else '') ~
   ('-v ' if snapshot_lvm_verify_only else '') ~
   ('-O ' if snapshot_lvm_mount_origin else '') ~

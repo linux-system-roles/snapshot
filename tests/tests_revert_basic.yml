@@ -64,6 +64,10 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: revert
 
+        - name: Assert changes for revert
+          assert:
+            that: snapshot_cmd["changed"]
+
         - name: Use the snapshot_lvm_verify option to make sure revert is done
           include_role:
             name: linux-system-roles.snapshot
@@ -72,6 +76,19 @@
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: revert
+
+        - name: Revert again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: revert
+
+        - name: Assert no changes for revert
+          assert:
+            that: not snapshot_cmd["changed"]
+
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml

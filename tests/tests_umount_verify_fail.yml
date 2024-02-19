@@ -62,6 +62,7 @@
               snapshot_lvm_lv: lv1
               snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv1_mp' }}"
               snapshot_lvm_verify_only: true
+            __snapshot_failed_changed: false
 
         - name: Umount the snapshot for lv1
           include_role:
