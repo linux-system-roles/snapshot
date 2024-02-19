@@ -46,6 +46,7 @@
     pvs --all
     vgs --all
     cat /tmp/snapshot_role.log || :
+    cat /etc/lvm/devices/system.devices || :
   changed_when: false
   when: unused_disks_before != unused_disks_return.disks
   failed_when: unused_disks_before != unused_disks_return.disks
