@@ -19,22 +19,29 @@
   ansible.builtin.script: "{{ __snapshot_cmd }}"
   args:
     executable: "{{ __snapshot_python }}"
-  register: snapshot_cmd
+  register: snapshot_cmd_raw
   no_log: true
   ignore_errors: true  # noqa: ignore-errors - handled below
+  changed_when: false  # change handled below too
 
 - name: Print out response
   debug:
-    var: snapshot_cmd.stdout
+    var: snapshot_cmd_raw
     verbosity: 2
+
+- name: Parse raw output
+  set_fact:
+    snapshot_cmd: "{{ snapshot_cmd_raw.stdout | from_json }}"
+  changed_when: snapshot_cmd["changed"]
 
 - name: Set snapshot_facts to the JSON results
   set_fact:
-    snapshot_facts: "{{ snapshot_cmd.stdout | from_json }}"
+    snapshot_facts: "{{ snapshot_cmd['data'] }}"
   when: snapshot_lvm_action == "list"
 
 - name: Show errors
   debug:
-    msg: "{{ snapshot_cmd.stderr }}"
-  when: snapshot_cmd.rc != 0
-  failed_when: snapshot_cmd.rc != 0
+    msg: "{{ snapshot_cmd['errors'] }}"
+  when: snapshot_cmd["return_code"] != 0
+  failed_when:
+    - snapshot_cmd_raw is failed or snapshot_cmd["return_code"] != 0
