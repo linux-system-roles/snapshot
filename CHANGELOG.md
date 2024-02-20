@@ -1,6 +1,23 @@
 Changelog
 =========
 
+[1.3.0] - 2024-02-20
+--------------------
+
+### New Features
+
+- feat: add support for snapshot_lvm_vg_include (#39)
+
+### Bug Fixes
+
+- fix: ostree test failures - use /var/mnt (#37)
+- fix: ensure role is idempotent and supports check mode (#41)
+
+### Other Changes
+
+- refactor: use iterator function for listing vgs, lvs (#36)
+- refactor: centralize test setup/cleanup - add cleanup debugging (#38)
+
 [1.2.0] - 2024-02-13
 --------------------
 
