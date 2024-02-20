@@ -206,7 +206,7 @@ VGs/LVs</p></li>
 conflicts and there is sufficient space to take the snapshots</p></li>
 <li><p><code>remove</code>: Remove snapshots that conform to the
 specified prefix and pattern</p></li>
-<li><p><code>revert</code>: Revert to snapshots that are specifed by
+<li><p><code>revert</code>: Revert to snapshots that are specified by
 either the pattern or set. If either the source LV or snapshot are open,
 the merge is deferred until the next time the server reboots and the
 source logical volume is activated.</p></li>
@@ -276,7 +276,6 @@ class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="
 <span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
 <p>The mount_origin flag defaults to false, so it is not necessary when
 the user is mounting the snapshot rather than the origin.</p>
-<p>If before running the role, with :</p>
 <h2 id="snapshot_lvm_snapset_name">snapshot_lvm_snapset_name</h2>
 <p>This variable is required. snapshot_lvm_snapset_name is a string that
 will be appended to the name of the LV when the snapshot set is created.
@@ -366,7 +365,7 @@ snapshot. When used inside of a snapset definition, use mount_origin
 parameter.</p>
 <h2 id="snapshot_lvm_unmount_all">snapshot_lvm_unmount_all</h2>
 <p>If set to true, unmount all mountpoint for the resulting blockdevice.
-Linux allows filesytems to be mounted in multiple locations. Setting
+Linux allows filesystems to be mounted in multiple locations. Setting
 this flag will unmount all locations.</p>
 <h2 id="snapshot_lvm_vg_include">snapshot_lvm_vg_include</h2>
 <p>When using <code>snapshot_lvm_all_vgs</code>, there may be some
