@@ -94,9 +94,10 @@ class SnapshotStatus:
     ERROR_MOUNT_POINT_NOT_EXISTING = 32
     ERROR_MOUNT_NOT_BLOCKDEV = 33
     ERROR_MOUNT_INVALID_PARAMS = 34
-    ERROR_MOUNT_INUSE = 35
+    ERROR_MOUNT_POINT_ALREADY_MOUNTED = 35
     ERROR_MOUNT_VERIFY_FAILED = 36
     ERROR_UMOUNT_VERIFY_FAILED = 37
+    ERROR_UMOUNT_NOT_MOUNTED = 38
 
 
 def makedirs(path):
@@ -104,11 +105,41 @@ def makedirs(path):
         os.makedirs(path, 0o755)
 
 
+def get_mounted_device(mount_target):
+    """If mount_target is mounted, return the device that is mounted.
+    If mount_target is not mounted, return None."""
+    with open("/proc/mounts") as pm:
+        for line in pm:
+            params = line.split(" ")
+            if mount_target == params[1]:
+                return params[0]
+    return None
+
+
 def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=False, check_mode=False):
     mount_command = []
     mountpoint = os.path.normpath(mountpoint)
     if options is None:
         options = "defaults"
+
+    mounted_dev = get_mounted_device(mountpoint)
+    if mounted_dev:
+        try:
+            if os.path.samefile(blockdev, mounted_dev):
+                return (
+                    SnapshotStatus.ERROR_MOUNT_POINT_ALREADY_MOUNTED,
+                    mountpoint + " is already mounted at " + blockdev,
+                )
+            else:
+                return (
+                    SnapshotStatus.ERROR_MOUNT_FAILED,
+                    mountpoint + " is already mounted at different device " + mounted_dev,
+                )
+        except Exception as exc:
+            return (
+                SnapshotStatus.ERROR_MOUNT_FAILED,
+                "could not verify mountpoint " + mountpoint + " at " + blockdev + ": " + str(exc)
+            )
 
     if not os.path.isdir(mountpoint):
         if not mountpoint_create:
@@ -138,14 +169,23 @@ def mount(blockdev, mountpoint, fstype=None, options=None, mountpoint_create=Fal
     rc, output = run_command(mount_command)
 
     if rc != 0:
-        logger.info("failed to mount: ".join(mount_command))
-        logger.info(output)
-        return (SnapshotStatus.ERROR_MOUNT_FAILED, output)
+        logger.error("failed to mount: ".join(mount_command))
+        logger.error(output)
+        return SnapshotStatus.ERROR_MOUNT_FAILED, output
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def umount(umount_target, all_targets, check_mode):
+    mounted_dev = get_mounted_device(umount_target)
+    if not mounted_dev:
+        return (
+            SnapshotStatus.ERROR_UMOUNT_NOT_MOUNTED,
+            "not mounted " + umount_target,
+        )
+    else:
+        logger.info("umount target %s from device %s", umount_target, mounted_dev)
+
     umount_command = []
 
     umount_command.append("umount")
@@ -159,8 +199,8 @@ def umount(umount_target, all_targets, check_mode):
     rc, output = run_command(umount_command)
 
     if rc != 0:
-        logger.info("failed to unmount %s: %s", umount_target, output)
-        return (SnapshotStatus.ERROR_UMOUNT_FAILED, output)
+        logger.error("failed to unmount %s: %s", umount_target, output)
+        return SnapshotStatus.ERROR_UMOUNT_FAILED, output
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
@@ -516,7 +556,7 @@ def revert_lv(vg_name, snapshot_name, check_mode):
             )
     else:
         return (
-            SnapshotStatus.ERROR_REVERT_FAILED,
+            SnapshotStatus.ERROR_LV_NOTFOUND,
             "snapshot not found with name: " + vg_name + "/" + snapshot_name,
         )
 
@@ -554,6 +594,8 @@ def revert_lvs(vg_name, lv_name, suffix, check_mode):
             rc, message = revert_lv(vg["vg_name"], lv_item_name, check_mode)
 
             if rc != SnapshotStatus.SNAPSHOT_OK:
+                if rc == SnapshotStatus.ERROR_LV_NOTFOUND:
+                    rc = SnapshotStatus.SNAPSHOT_OK  # already removed or reverted
                 return rc, message, changed
 
             # if we got here at least 1 snapshot was reverted
@@ -1032,6 +1074,8 @@ def revert_snapshot_set(snapset_json, check_mode):
         rc, message = revert_lv(vg, get_snapshot_name(lv, snapset_name), check_mode)
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
+            if rc == SnapshotStatus.ERROR_LV_NOTFOUND:
+                rc = SnapshotStatus.SNAPSHOT_OK  # already removed or reverted
             return rc, message, changed
 
         # if we got here at least 1 snapshot was reverted
@@ -1074,6 +1118,8 @@ def umount_lv(umount_target, vg_name, lv_name, all_targets, check_mode):
 
     rc, message = umount(umount_target, all_targets, check_mode)
     changed = rc == SnapshotStatus.SNAPSHOT_OK
+    if rc == SnapshotStatus.ERROR_UMOUNT_NOT_MOUNTED:
+        rc = SnapshotStatus.SNAPSHOT_OK  # already unmounted - not an error
     return rc, message, changed
 
 
@@ -1320,6 +1366,8 @@ def mount_lv(
 
     rc, message = mount(blockdev, mountpoint, fstype, options, create, check_mode)
     changed = rc == SnapshotStatus.SNAPSHOT_OK
+    if rc == SnapshotStatus.ERROR_MOUNT_POINT_ALREADY_MOUNTED:
+        rc = SnapshotStatus.SNAPSHOT_OK  # this is ok
 
     return rc, message, changed
 
@@ -1574,14 +1622,21 @@ def verify_snapset_target_no_existing(snapset_json):
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return (
                 rc,
-                "volume exists that matches the pattern: " + vg + "/" + snapshot_name,
+                "could not determine if snapshot exists: " + vg + "/" + snapshot_name,
             )
 
         if lv_exists:
-            return (
-                SnapshotStatus.ERROR_VERIFY_REMOVE_FAILED,
-                "volume exists that matches the pattern: " + vg + "/" + snapshot_name,
-            )
+            rc, exists = lvm_is_snapshot(vg, snapshot_name)
+            if rc == SnapshotStatus.SNAPSHOT_OK and exists:
+                return (
+                    SnapshotStatus.ERROR_ALREADY_EXISTS,
+                    "snapshot already exists: " + vg + "/" + snapshot_name,
+                )
+            else:
+                return (
+                    SnapshotStatus.ERROR_SNAPSET_CHECK_STATUS_FAILED,
+                    "volume exists that matches the pattern: " + vg + "/" + snapshot_name,
+                )
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
@@ -1718,6 +1773,8 @@ def snapshot_create_set(snapset_json, check_mode):
 
     rc, message, current_space_dict = snapshot_precheck_lv_set(snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
+        if rc == SnapshotStatus.ERROR_ALREADY_EXISTS:
+            rc = SnapshotStatus.SNAPSHOT_OK
         return rc, message, changed
 
     # Take snapshots
@@ -1789,7 +1846,11 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix, check_m
                 check_mode
             )
 
-            # TODO: Should the exiting snapshot be removed and be updated?
+            # TODO: Should the existing snapshot be removed and be updated?
+            # richm - IMO no - Ansible idempotence requires that the task should
+            # report "changed": false for this snapshot - user can use `list`
+            # to get list of existing snapshots, and use `remove` if they
+            # want to remove and recreate
             if rc == SnapshotStatus.ERROR_ALREADY_EXISTS:
                 continue
 
@@ -1806,13 +1867,6 @@ def snapshot_lvs(required_space, snapshot_all, vg_name, lv_name, suffix, check_m
             return SnapshotStatus.ERROR_LV_NOTFOUND, "logical volume does not exist: " + lv_name, changed
 
     return SnapshotStatus.SNAPSHOT_OK, "", changed
-
-
-def validate_snapset_args(args):
-    if args.set_json is None:
-        return SnapshotStatus.ERROR_CMD_INVALID, "%s snapset command requires --group parameter" % args.operation
-
-    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def validate_args(args):

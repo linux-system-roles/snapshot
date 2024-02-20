@@ -89,3 +89,7 @@
       when:
         - __snapshot_failed_regex is defined
         - __snapshot_failed_msg is defined
+
+    - name: Assert role reported changes correctly
+      assert:
+        that: snapshot_cmd["changed"] == __snapshot_failed_changed
