@@ -166,6 +166,8 @@ id="toc-snapshot_lvm_mountpoint">snapshot_lvm_mountpoint</a></li>
 id="toc-snapshot_lvm_mount_origin">snapshot_lvm_mount_origin</a></li>
 <li><a href="#snapshot_lvm_unmount_all"
 id="toc-snapshot_lvm_unmount_all">snapshot_lvm_unmount_all</a></li>
+<li><a href="#snapshot_lvm_vg_include"
+id="toc-snapshot_lvm_vg_include">snapshot_lvm_vg_include</a></li>
 <li><a href="#variables-exported-by-the-role"
 id="toc-variables-exported-by-the-role">Variables Exported by the
 Role</a>
@@ -366,6 +368,14 @@ parameter.</p>
 <p>If set to true, unmount all mountpoint for the resulting blockdevice.
 Linux allows filesytems to be mounted in multiple locations. Setting
 this flag will unmount all locations.</p>
+<h2 id="snapshot_lvm_vg_include">snapshot_lvm_vg_include</h2>
+<p>When using <code>snapshot_lvm_all_vgs</code>, there may be some
+subset of all volume groups that you want to use. Set
+<code>snapshot_lvm_vg_include</code> to a regex pattern that matches the
+names of the volume groups you want to use and the rest will be
+excluded. For example, <code>snapshot_lvm_vg_include: "^sql_db_"</code>
+will only operate on volume groups whose names start with
+<code>sql_db_</code>. This uses the Python <code>re.search</code>.</p>
 <h2 id="variables-exported-by-the-role">Variables Exported by the
 Role</h2>
 <h3 id="snapshot_facts">snapshot_facts</h3>
