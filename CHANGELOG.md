@@ -1,6 +1,13 @@
 Changelog
 =========
 
+[1.3.1] - 2024-02-21
+--------------------
+
+### Bug Fixes
+
+- fix: better error handling for all platforms and ansible versions (#47)
+
 [1.3.0] - 2024-02-20
 --------------------
 
