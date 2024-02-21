@@ -55,6 +55,10 @@
         msg: UNREACH
 
   rescue:
+    - name: Debug
+      debug:
+        var: ansible_failed_result
+
     - name: Check that there was a failure in the role
       assert:
         that: ansible_failed_result.msg != 'UNREACH'
