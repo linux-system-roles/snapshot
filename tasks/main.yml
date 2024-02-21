@@ -15,32 +15,40 @@
     var: __snapshot_cmd
     verbosity: 2
 
-- name: Run snapshot command {{ snapshot_lvm_action }}
-  ansible.builtin.script: "{{ __snapshot_cmd }}"
-  args:
-    executable: "{{ __snapshot_python }}"
-  register: snapshot_cmd_raw
-  no_log: true
-  ignore_errors: true  # noqa: ignore-errors - handled below
-  changed_when: false  # change handled below too
+- name: Run snapshot command and handle errors
+  block:
+    - name: Run snapshot command {{ snapshot_lvm_action }}
+      ansible.builtin.script: "{{ __snapshot_cmd }}"
+      args:
+        executable: "{{ __snapshot_python }}"
+      register: snapshot_cmd_raw
+      no_log: true
+      changed_when: false  # change handled below too
 
-- name: Print out response
-  debug:
-    var: snapshot_cmd_raw
-    verbosity: 2
+  rescue:
+    - name: Raise error
+      fail:
+        msg: "{{ ansible_failed_result }}"
 
-- name: Parse raw output
-  set_fact:
-    snapshot_cmd: "{{ snapshot_cmd_raw.stdout | from_json }}"
-  changed_when: snapshot_cmd["changed"]
+  always:
+    - name: Print out response
+      debug:
+        var: snapshot_cmd_raw
+        verbosity: 2
 
-- name: Set snapshot_facts to the JSON results
-  set_fact:
-    snapshot_facts: "{{ snapshot_cmd['data'] }}"
-  when: snapshot_lvm_action == "list"
+    - name: Parse raw output
+      set_fact:
+        snapshot_cmd: "{{ snapshot_cmd_raw.stdout_lines |
+          reject('search', ': warning: setlocale: LC_ALL: cannot change locale') |
+          join('') | from_json }}"
+      changed_when: snapshot_cmd["changed"]
 
-- name: Show errors
-  debug:
-    var: snapshot_cmd["errors"]
-  when: snapshot_cmd["return_code"] != 0
-  failed_when: snapshot_cmd_raw is failed or snapshot_cmd["return_code"] != 0
+    - name: Set snapshot_facts to the JSON results
+      set_fact:
+        snapshot_facts: "{{ snapshot_cmd['data'] }}"
+      when: snapshot_lvm_action == "list"
+
+    - name: Show errors
+      debug:
+        var: snapshot_cmd["errors"]
+      when: snapshot_cmd["return_code"] != 0
