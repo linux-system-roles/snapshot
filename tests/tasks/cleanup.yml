@@ -8,6 +8,7 @@
   include_role:
     name: fedora.linux_system_roles.storage
   vars:
+    storage_udevadm_trigger: true  # helps with get_unused_disks, cleanup
     storage_safe_mode: false
     storage_pools: |
       {% set cleanup_pools = [] %}
@@ -47,6 +48,22 @@
     vgs --all
     cat /tmp/snapshot_role.log || :
     cat /etc/lvm/devices/system.devices || :
+    for dev in $(lsblk -l -p -o NAME); do
+      if [ "$dev" = NAME ]; then continue; fi
+      echo blkid info with cache
+      blkid "$dev" || :
+      echo blkid info without cache
+      blkid -p "$dev" || :
+    done
+    # garbage collect
+    blkid -g || :
+    echo lsblk after garbage collect
+    lsblk -p --pairs --bytes -o NAME,TYPE,SIZE,FSTYPE
+    # flush cache
+    blkid -s none || :
+    echo lsblk after cache flush
+    lsblk -p --pairs --bytes -o NAME,TYPE,SIZE,FSTYPE
+    cat /tmp/blivet.log || :
   changed_when: false
   when: unused_disks_before != unused_disks_return.disks
   failed_when: unused_disks_before != unused_disks_return.disks
