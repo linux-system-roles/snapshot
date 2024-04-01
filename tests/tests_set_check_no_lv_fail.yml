@@ -21,7 +21,7 @@
           vars:
             percent_space_required: 15
             __snapshot_failed_regex: >-
-              source logical volume in snapset does not*
+              source logical volume does not*
             __snapshot_failed_msg: >-
               Role check did not fail with incorrect LV name
             __snapshot_failed_params:

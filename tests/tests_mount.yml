@@ -180,6 +180,9 @@
           include_role:
             name: linux-system-roles.snapshot
           vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_vg: test_vg3
+            snapshot_lvm_lv: lv6
             snapshot_lvm_action: umount
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
 
