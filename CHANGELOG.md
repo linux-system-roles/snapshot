@@ -1,6 +1,15 @@
 Changelog
 =========
 
+[1.3.2] - 2024-04-04
+--------------------
+
+### Other Changes
+
+- test: use storage_udevadm_trigger, gather debug when fail (#49)
+- ci: Bump ansible/ansible-lint from 6 to 24 (#50)
+- ci: Bump mathieudutour/github-tag-action from 6.1 to 6.2 (#53)
+
 [1.3.1] - 2024-02-21
 --------------------
 
