@@ -42,6 +42,10 @@ This variable is required. It supports one of the following values:
             space allocated to the snapshot.  Allocations are rounded up to the
             next multiple of the volume group extent size.
 
+- `mount`:  Mount a filesystem on a mount point
+
+- `umount`: Unmount a filesytem
+
 ### snapshot_lvm_set
 
 The snapshot role supports sets of volumes.  Sets may contain any number of volumes.
@@ -214,6 +218,15 @@ use mountpoint parameter.
 
 If set to true, mount the origin of the snapshot rather than the snapshot.
 When used inside of a snapset definition, use mount_origin parameter.
+
+### snapshot_lvm_mount_options
+
+Options to pass to the mount command for the filesystem.  The argument is
+a comma separated list.  See the man page for mount for details.
+Note that XFS by default will not allow multiple filesystems with the
+same UUID to be mounted at the same time.  Using the "nouuid" will
+bypass the duplicate UUID check and allow a snapshot to be mounted
+at the same time as the snapshot source.
 
 ### snapshot_lvm_unmount_all
 
