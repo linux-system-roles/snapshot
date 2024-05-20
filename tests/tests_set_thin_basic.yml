@@ -1,0 +1,112 @@
+---
+- name: Snapshot a set of logical volumes across different volume groups
+  hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 5) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: thin_pool_dev
+            thin_pool_name: thin_pool_vg1
+            thin_pool_size: '4g'
+            size: "2g"
+            thin: true
+          - name: lv2
+            thin_pool_name: thin_pool_vg1
+            thin_pool_size: '2g'
+            size: "15m"
+            thin: true
+          - name: lv3
+            thin_pool_name: thin_pool_vg1
+            thin_pool_size: '2g'
+            size: "15m"
+            thin: true
+          - name: lv4
+            thin_pool_name: thin_pool_vg1
+            thin_pool_size: '2g'
+            size: "15m"
+            thin: true
+
+    snapshot_test_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV2
+          vg: test_vg1
+          lv: lv2
+          percent_space_required: 20
+        - name: snapshot VG1 LV3
+          vg: test_vg1
+          lv: lv3
+          percent_space_required: 20
+
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot set of LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert changes for create snapset
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Run the snapshot role to verify the set of snapshots for the LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: check
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
+
+        - name: Create snapset again for idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for create snapset
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Run the snapshot role remove the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert changes for remove snapset
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Run the snapshot role to verify the set is removed
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
+
+        - name: Remove again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for remove snapset
+          assert:
+            that: not snapshot_cmd["changed"]
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup

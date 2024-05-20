@@ -594,14 +594,14 @@ def vgs_lvs_iterator(vg_name, lv_name, omit_empty_lvs=False):
                 yield (vg, lvs)
 
 
-def vgs_lvs_dict(vg_name, lv_name, vg_include):
+def vgs_lvs_dict(vg_name, lv_name):
     """Return a dict using vgs_lvs_iterator.  Key is
     vg name, value is list of lvs corresponding to vg.
     The returned dict will not have vgs that have no lvs."""
     return dict(
         [
             (vg["vg_name"], lvs)
-            for vg, lvs in vgs_lvs_iterator(vg_name, lv_name, vg_include, True)
+            for vg, lvs in vgs_lvs_iterator(vg_name, lv_name, True)
         ]
     )
 
@@ -628,6 +628,54 @@ def get_snapshot_name(lv_name, suffix):
         suffix_str = ""
 
     return lv_name + "_" + suffix_str
+
+
+def lvm_get_attr(vg_name, lv_name):
+    lvs_command = ["lvs", "--reportformat", "json", vg_name + "/" + lv_name]
+
+    rc, output = run_command(lvs_command)
+
+    if rc == LVM_NOTFOUND_RC:
+        return SnapshotStatus.SNAPSHOT_OK, False
+
+    if rc:
+        return SnapshotStatus.ERROR_LVS_FAILED, None
+
+    try:
+        lvs_json = json.loads(output)
+    except ValueError as error:
+        logger.info(error)
+        message = "lvm_is_snapshot: json decode failed : %s" % error.args[0]
+        return SnapshotStatus.ERROR_JSON_PARSER_ERROR, message
+
+    lv_list = lvs_json["report"]
+
+    if len(lv_list) > 1 or len(lv_list[0]["lv"]) > 1:
+        raise LvmBug("'lvs' returned more than 1 lv '%d'" % rc)
+
+    lv = lv_list[0]["lv"][0]
+
+    lv_attr = lv["lv_attr"]
+
+    if len(lv_attr) == 0:
+        raise LvmBug("'lvs' zero length attr : '%d'" % rc)
+
+    return SnapshotStatus.SNAPSHOT_OK, lv_attr
+
+
+def lvm_is_thinpool(vg_name, lv_name):
+    rc, lv_attr = lvm_get_attr(vg_name, lv_name)
+
+    if rc == LVM_NOTFOUND_RC:
+        return SnapshotStatus.SNAPSHOT_OK, False
+
+    if rc:
+        return SnapshotStatus.ERROR_LVS_FAILED, None
+
+    if lv_attr[0] == "t":
+        return SnapshotStatus.SNAPSHOT_OK, True
+    else:
+        return SnapshotStatus.SNAPSHOT_OK, False
 
 
 def lvm_lv_exists(vg_name, lv_name):
@@ -703,36 +751,15 @@ def lvm_is_inuse(vg_name, lv_name):
     return SnapshotStatus.SNAPSHOT_OK, False
 
 
-def lvm_is_snapshot(vg_name, snapshot_name):
-    lvs_command = ["lvs", "--reportformat",
-                   "json", vg_name + "/" + snapshot_name]
 
-    rc, output = run_command(lvs_command)
+def lvm_is_snapshot(vg_name, lv_name):
+    rc, lv_attr = lvm_get_attr(vg_name, lv_name)
 
     if rc == LVM_NOTFOUND_RC:
         return SnapshotStatus.SNAPSHOT_OK, False
 
     if rc:
         return SnapshotStatus.ERROR_LVS_FAILED, None
-
-    try:
-        lvs_json = json.loads(output)
-    except ValueError as error:
-        logger.info(error)
-        message = "lvm_is_snapshot: json decode failed : %s" % error.args[0]
-        return SnapshotStatus.ERROR_JSON_PARSER_ERROR, message
-
-    lv_list = lvs_json["report"]
-
-    if len(lv_list) > 1 or len(lv_list[0]["lv"]) > 1:
-        raise LvmBug("'lvs' returned more than 1 lv '%d'" % rc)
-
-    lv = lv_list[0]["lv"][0]
-
-    lv_attr = lv["lv_attr"]
-
-    if len(lv_attr) == 0:
-        raise LvmBug("'lvs' zero length attr : '%d'" % rc)
 
     if lv_attr[0] == "s":
         return SnapshotStatus.SNAPSHOT_OK, True
@@ -1016,27 +1043,6 @@ def check_name_for_snapshot(lv_name, suffix):
         )
     else:
         return SnapshotStatus.SNAPSHOT_OK, ""
-
-
-def check_lvs(required_space, vg_name, lv_name, suffix):
-    # Check to make sure all the source vgs/lvs exist
-    rc, message = verify_source_lvs_exist(vg_name, lv_name)
-    if rc != SnapshotStatus.SNAPSHOT_OK:
-        return rc, message
-
-    for vg, lv_list in vgs_lvs_iterator(vg_name, lv_name):
-        for lv in lv_list:
-            rc, message = check_name_for_snapshot(lv["lv_name"], suffix)
-            if rc != SnapshotStatus.SNAPSHOT_OK:
-                return rc, message
-
-        if check_space_for_snapshots(vg, lv_list, lv_name, required_space):
-            return (
-                SnapshotStatus.ERROR_INSUFFICIENT_SPACE,
-                "insufficient space for snapshots",
-            )
-
-    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 # Verify that the set has been created
@@ -2169,8 +2175,25 @@ def get_json_from_args(module_args):
             if lv["lv_name"].endswith(module_args["snapshot_lvm_snapset_name"]):
                 continue
 
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "get_json_from_args: command failed for LV lvm_is_snapshot()",
+                    None,
+                )
+
+            if is_snapshot:
                 continue
 
+            rc, is_thinpool = lvm_is_thinpool(vg_str, lv["lv_name"])
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return (
+                    SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                    "get_json_from_args: command failed for LV lvm_is_thinpool()",
+                    None,
+                )
+            if is_thinpool:
+                continue
             volume = {}
             volume["name"] = ("snapshot : " + vg_str + "/" + lv["lv_name"],)
             volume["vg"] = vg_str
@@ -2378,7 +2401,7 @@ def run_module():
     if len(module.params["snapshot_lvm_set"]) > 0:
         cmd_result, snapset_dict = validate_snapset_json(
             get_command_const(module.params["snapshot_lvm_action"]),
-            module.params["snapshot_lvm_set"].replace("'", '"'),
+            module.params["snapshot_lvm_set"],
             False,
         )
     else:
@@ -2421,7 +2444,6 @@ def run_module():
 
 def main():
     set_up_logging()
-
     # Ensure that we get consistent output for parsing stdout/stderr and that we
     # are using the lvmdbusd profile.
     os.environ["LC_ALL"] = "C"
