@@ -14,19 +14,19 @@
           __snapshot_failed_params.get('snapshot_lvm_percent_space_required')
           }}"
         snapshot_lvm_all_vgs: "{{
-          __snapshot_failed_params.get('snapshot_all')
+          __snapshot_failed_params.get('snapshot_lvm_all_vgs', false)
           }}"
         snapshot_lvm_snapset_name: "{{
           __snapshot_failed_params.get('snapshot_lvm_snapset_name')
           }}"
         snapshot_lvm_set: "{{
-          __snapshot_failed_params.get('__snapshot_lvm_set')
+          __snapshot_failed_params.get('__snapshot_lvm_set', {})
           }}"
         snapshot_lvm_action: "{{
           __snapshot_failed_params.get('snapshot_lvm_action')
           }}"
         snapshot_lvm_verify_only: "{{
-          __snapshot_failed_params.get('snapshot_lvm_verify_only')
+          __snapshot_failed_params.get('snapshot_lvm_verify_only', false)
           }}"
         snapshot_lvm_vg: "{{
           __snapshot_failed_params.get('snapshot_lvm_vg')
@@ -35,13 +35,13 @@
           __snapshot_failed_params.get('snapshot_lvm_lv')
           }}"
         snapshot_lvm_mount_origin: "{{
-          __snapshot_failed_params.get('snapshot_lvm_mount_origin')
+          __snapshot_failed_params.get('snapshot_lvm_mount_origin', false)
           }}"
         snapshot_lvm_mountpoint_create: "{{
-          __snapshot_failed_params.get('snapshot_lvm_mountpoint_create')
+          __snapshot_failed_params.get('snapshot_lvm_mountpoint_create', false)
           }}"
         snapshot_lvm_unmount_all: "{{
-          __snapshot_failed_params.get('snapshot_lvm_unmount_all')
+          __snapshot_failed_params.get('snapshot_lvm_unmount_all', false)
           }}"
         snapshot_lvm_mountpoint: "{{
           __snapshot_failed_params.get('snapshot_lvm_mountpoint')
@@ -74,19 +74,9 @@
         var: __snapshot_failed_regex
         verbosity: 1
 
-    # The default output when using the script module with ssh connections
-    # goes to stdout, even though print_result uses sys.stderr.
-    # yamllint disable-line rule:line-length
-    # See https://docs.ansible.com/ansible/latest/collections/ansible/builtin/script_module.html#notes
-    # yamllint enable rule:line-length
-    # HOWEVER - when using -c local, the stdout and stderr are separate and
-    # the script error output goes to stderr - so we have to check both stdout
-    # and stderr below.
-    # This is another reason why this should be a module not a script
     - name: Verify return code and message is correct
       assert:
         that:
-          - snapshot_cmd_raw is failed
           - snapshot_cmd["return_code"] != 0
           - snapshot_cmd["errors"] is search(__snapshot_failed_regex)
         msg: "{{ __snapshot_failed_msg }}"

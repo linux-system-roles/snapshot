@@ -12,7 +12,7 @@ snapshot_lvm_vg: ''
 snapshot_lvm_lv: ''
 snapshot_lvm_snapset_name: ''
 snapshot_lvm_percent_space_required: ''
-snapshot_lvm_set: ''
+snapshot_lvm_set: {}
 snapshot_lvm_mountpoint: ''
 snapshot_lvm_mount_options: ''
 snapshot_lvm_vg_include: ''

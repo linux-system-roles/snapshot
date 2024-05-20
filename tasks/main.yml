@@ -10,20 +10,29 @@
     use: "{{ (__snapshot_is_ostree | d(false)) |
               ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
 
-- name: Show snapshot command
-  debug:
-    var: __snapshot_cmd
-    verbosity: 2
-
-- name: Run snapshot command and handle errors
+- name: Run snapshot module and handle errors
   block:
-    - name: Run snapshot command {{ snapshot_lvm_action }}
-      ansible.builtin.script: "{{ __snapshot_cmd }}"
-      args:
-        executable: "{{ __snapshot_python }}"
-      register: snapshot_cmd_raw
-      no_log: true
-      changed_when: false  # change handled below too
+    - name: Run snapshot module {{ snapshot_lvm_action }}
+      snapshot:
+        snapshot_lvm_action: "{{ snapshot_lvm_action }}"
+        ansible_check_mode: "{{ ansible_check_mode | d(false) }}"
+        snapshot_lvm_all_vgs: "{{ snapshot_lvm_all_vgs | d(false) }}"
+        snapshot_lvm_verify_only: "{{ snapshot_lvm_verify_only | d(false) }}"
+        snapshot_lvm_mount_origin: "{{ snapshot_lvm_mount_origin | d(false) }}"
+        snapshot_lvm_mountpoint_create: "{{
+          snapshot_lvm_mountpoint_create | d(false) }}"
+        snapshot_lvm_unmount_all: "{{ snapshot_lvm_unmount_all | d(false) }}"
+        snapshot_lvm_percent_space_required: "{{
+          snapshot_lvm_percent_space_required | d(omit) }}"
+        snapshot_lvm_vg: "{{ snapshot_lvm_vg | d(omit) }}"
+        snapshot_lvm_lv: "{{ snapshot_lvm_lv | d(omit) }}"
+        snapshot_lvm_snapset_name: "{{ snapshot_lvm_snapset_name | d(omit) }}"
+        snapshot_lvm_mount_options: "{{ snapshot_lvm_mount_options | d(omit) }}"
+        snapshot_lvm_fstype: "{{ snapshot_lvm_fstype | d(omit) }}"
+        snapshot_lvm_mountpoint: "{{ snapshot_lvm_mountpoint | d(omit) }}"
+        snapshot_lvm_set: "{{ snapshot_lvm_set | d(omit) }}"
+        snapshot_lvm_vg_include: "{{ snapshot_lvm_vg_include | d(false) }}"
+      register: snapshot_cmd
 
   rescue:
     - name: Raise error
@@ -33,15 +42,12 @@
   always:
     - name: Print out response
       debug:
-        var: snapshot_cmd_raw
+        var: snapshot_cmd
         verbosity: 2
 
-    - name: Parse raw output
+    - name: Set result
       set_fact:
-        snapshot_cmd: "{{ snapshot_cmd_raw.stdout_lines |
-          reject('search', ': warning: setlocale: LC_ALL: cannot change locale') |
-          join('') | from_json }}"
-      changed_when: snapshot_cmd["changed"]
+        snapshot_cmd: "{{ snapshot_cmd }}"
 
     - name: Set snapshot_facts to the JSON results
       set_fact:
