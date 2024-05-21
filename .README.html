@@ -164,6 +164,8 @@ id="toc-snapshot_lvm_mountpoint_create">snapshot_lvm_mountpoint_create</a></li>
 id="toc-snapshot_lvm_mountpoint">snapshot_lvm_mountpoint</a></li>
 <li><a href="#snapshot_lvm_mount_origin"
 id="toc-snapshot_lvm_mount_origin">snapshot_lvm_mount_origin</a></li>
+<li><a href="#snapshot_lvm_mount_options"
+id="toc-snapshot_lvm_mount_options">snapshot_lvm_mount_options</a></li>
 <li><a href="#snapshot_lvm_unmount_all"
 id="toc-snapshot_lvm_unmount_all">snapshot_lvm_unmount_all</a></li>
 <li><a href="#snapshot_lvm_vg_include"
@@ -214,6 +216,8 @@ source logical volume is activated.</p></li>
 snapshot_lvm_percent_space_required space allocated to the snapshot.
 Allocations are rounded up to the next multiple of the volume group
 extent size.</p></li>
+<li><p><code>mount</code>: Mount a filesystem on a mount point</p></li>
+<li><p><code>umount</code>: Unmount a filesytem</p></li>
 </ul>
 <h2 id="snapshot_lvm_set">snapshot_lvm_set</h2>
 <p>The snapshot role supports sets of volumes. Sets may contain any
@@ -363,6 +367,13 @@ definition, use mountpoint parameter.</p>
 <p>If set to true, mount the origin of the snapshot rather than the
 snapshot. When used inside of a snapset definition, use mount_origin
 parameter.</p>
+<h2 id="snapshot_lvm_mount_options">snapshot_lvm_mount_options</h2>
+<p>Options to pass to the mount command for the filesystem. The argument
+is a comma separated list. See the man page for mount for details. Note
+that XFS by default will not allow multiple filesystems with the same
+UUID to be mounted at the same time. Using the "nouuid" will bypass the
+duplicate UUID check and allow a snapshot to be mounted at the same time
+as the snapshot source.</p>
 <h2 id="snapshot_lvm_unmount_all">snapshot_lvm_unmount_all</h2>
 <p>If set to true, unmount all mountpoint for the resulting blockdevice.
 Linux allows filesystems to be mounted in multiple locations. Setting
