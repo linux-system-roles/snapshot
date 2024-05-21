@@ -1,6 +1,13 @@
 Changelog
 =========
 
+[1.3.3] - 2024-05-21
+--------------------
+
+### Other Changes
+
+- refactor: translate command line arguments into JSON format and use common functions  (#55)
+
 [1.3.2] - 2024-04-04
 --------------------
 
