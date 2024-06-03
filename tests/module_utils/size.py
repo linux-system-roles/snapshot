@@ -160,8 +160,6 @@ class Size(object):
                 exp += 1
         else:
             ftr, exp = self._parse_units(units.strip())
-            value = (
-                float(self.factor**self.exponent) / float(ftr**exp)
-            ) * self.number
+            value = (float(self.factor**self.exponent) / float(ftr**exp)) * self.number
 
         return self._format(fmt, ftr, exp) % value
