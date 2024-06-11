@@ -798,7 +798,13 @@ def revert_lv(vg_name, snapshot_name, check_mode):
         raise LvmBug("'lvs' failed '%d'" % rc)
 
     if lv_exists:
-        if not lvm_is_snapshot(vg_name, snapshot_name):
+        rc, is_snapshot = lvm_is_snapshot(vg_name, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "revert_lv: command failed for LV lvm_is_snapshot()",
+            )
+        if not is_snapshot:
             return (
                 SnapshotStatus.ERROR_REVERT_FAILED,
                 "LV with name: " + vg_name + "/" + snapshot_name + " is not a snapshot",
@@ -829,7 +835,14 @@ def extend_lv_snapshot(vg_name, lv_name, suffix, percent_space_required, check_m
 
     changed = False
     if lv_exists:
-        if not lvm_is_snapshot(vg_name, snapshot_name):
+        rc, is_snapshot = lvm_is_snapshot(vg_name, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "extend_lv_snapshot: command failed for LV lvm_is_snapshot()",
+                changed,
+            )
+        if not is_snapshot:
             return (
                 SnapshotStatus.ERROR_EXTEND_NOT_SNAPSHOT,
                 "LV with name: " + vg_name + "/" + snapshot_name + " is not a snapshot",
@@ -970,7 +983,13 @@ def snapshot_lv(vg_name, lv_name, suffix, snap_size, check_mode):
     rc, _vg_exists, lv_exists = lvm_lv_exists(vg_name, snapshot_name)
 
     if lv_exists:
-        if lvm_is_snapshot(vg_name, snapshot_name):
+        rc, is_snapshot = lvm_is_snapshot(vg_name, snapshot_name)
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return (
+                SnapshotStatus.ERROR_VERIFY_COMMAND_FAILED,
+                "snapshot_lv: command failed for LV lvm_is_snapshot()",
+            )
+        if is_snapshot:
             return (
                 SnapshotStatus.ERROR_ALREADY_EXISTS,
                 "Snapshot of :" + vg_name + "/" + lv_name + " already exists",
