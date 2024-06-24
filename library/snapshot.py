@@ -106,6 +106,7 @@ options:
                 description: list of volumes
                 type: list
                 elements: dict
+                default: []
                 suboptions:
                     name:
                         description: name of volume
@@ -118,10 +119,13 @@ options:
                         type: str
                     percent_space_required:
                         description: percent of space required for volume
-                        type: int
+                        type: str
                     mountpoint:
                         description: path where to mount the snapshot
                         type: str
+                    mountpoint_create:
+                        description: create mountpoint and parent dirs
+                        type: bool
                     mount_origin:
                         description: whether to mount the origin of the snapshot
                         type: bool
@@ -134,6 +138,9 @@ options:
                     all_targets:
                         description: apply operation to all matching targets
                         type: bool
+                    thin_pool:
+                        description: name of thin pool
+                        type: str
 
 author:
     - Todd Gill (@trgill)
@@ -177,7 +184,7 @@ return_code:
     type: int
     returned: success
 changed:
-    description: an indicator set to true if any action was taken, otherwize
+    description: an indicator set to true if any action was taken, otherwise
         set to false.
     type: bool
     returned: success
@@ -1243,17 +1250,17 @@ def umount_snapshot_set(module, snapset_json, verify_only, check_mode):
 
     changed = False
     for list_item in volume_list:
-
+        logger.info("umount_snapshot_set: list_item %s", str(list_item))
         vg_name = list_item["vg"]
         lv_name = list_item["lv"]
         mountpoint = list_item["mountpoint"]
 
-        if "all_targets" in list_item:
+        if list_item.get("all_targets") is not None:
             all_targets = to_bool(list_item["all_targets"])
         else:
             all_targets = False
 
-        if "mount_origin" in list_item:
+        if list_item.get("mount_origin") is not None:
             origin = to_bool(list_item["mount_origin"])
         else:
             origin = False
@@ -1295,31 +1302,22 @@ def mount_snapshot_set(
         lv_name = list_item["lv"]
 
         if not cmdline_mountpoint_create:
-            if "mountpoint_create" in list_item:
+            if list_item["mountpoint_create"] is not None:
                 mountpoint_create = to_bool(list_item["mountpoint_create"])
             else:
                 mountpoint_create = False
         else:
             mountpoint_create = to_bool(cmdline_mountpoint_create)
 
-        if "mount_origin" in list_item:
+        if list_item.get("mount_origin") is not None:
             origin = to_bool(list_item["mount_origin"])
         else:
             origin = False
 
-        if "fstype" in list_item:
-            fstype = list_item["fstype"]
-        else:
-            fstype = None
-
-        if "options" in list_item:
-            options = list_item["options"]
-        else:
-            options = None
-
-        if "mountpoint" in list_item:
-            mountpoint = list_item["mountpoint"]
-        else:
+        fstype = list_item.get("fstype")
+        options = list_item.get("options")
+        mountpoint = list_item.get("mountpoint")
+        if mountpoint is None:
             return (
                 SnapshotStatus.ERROR_MOUNT_INVALID_PARAMS,
                 "set item must provide a mountpoint for : " + vg_name + "/" + lv_name,
@@ -1900,7 +1898,7 @@ def snapshot_set(module, snapset_json, check_mode):
     return rc, message, changed
 
 
-def get_required_space(required_space_str):
+def check_required_space(required_space_str):
     try:
         percent_space_required = int(required_space_str)
 
@@ -1908,17 +1906,15 @@ def get_required_space(required_space_str):
             return (
                 SnapshotStatus.ERROR_INVALID_PERCENT_REQUESTED,
                 "percent_space_required must be greater than 1: "
-                + str(required_space_str),
-                0,
+                + str(percent_space_required),
             )
     except ValueError:
         return (
             SnapshotStatus.ERROR_INVALID_PERCENT_REQUESTED,
             "percent_space_required must be a positive integer: " + required_space_str,
-            0,
         )
 
-    return SnapshotStatus.SNAPSHOT_OK, "", percent_space_required
+    return SnapshotStatus.SNAPSHOT_OK, ""
 
 
 def validate_general_args(module_args):
@@ -1969,7 +1965,7 @@ def validate_general_args(module_args):
 
     # not all commands include snapshot_lvm_percent_space_required
     if module_args["snapshot_lvm_percent_space_required"]:
-        rc, message, _required_space = get_required_space(
+        rc, message = check_required_space(
             module_args["snapshot_lvm_percent_space_required"]
         )
 
@@ -1986,7 +1982,7 @@ def validate_snapshot_args(module_args):
             "snapset snapshot_lvm_percent_space_required entry not found",
         )
 
-    rc, message, _required_space = get_required_space(
+    rc, message = check_required_space(
         module_args["snapshot_lvm_percent_space_required"]
     )
 
@@ -2046,7 +2042,7 @@ def validate_snapset_args(module, cmd, module_args, vg_include):
         return {"return_code": rc, "errors": message, "changed": False}, None
 
     rc, message, snapset_dict = get_json_from_args(module, module_args, vg_include)
-
+    logger.info("validate_snapset_args: END snapset_dict is %s", str(snapset_dict))
     return {"return_code": rc, "errors": message, "changed": False}, snapset_dict
 
 
@@ -2081,14 +2077,12 @@ def validate_json_request(snapset_json, check_percent_space_required):
 
         if check_percent_space_required:
 
-            if "percent_space_required" not in list_item:
+            if not list_item.get("percent_space_required"):
                 return (
                     SnapshotStatus.ERROR_JSON_PARSER_ERROR,
                     "snapset percent_space_required entry not found",
                 )
-            rc, message, _value = get_required_space(
-                list_item["percent_space_required"]
-            )
+            rc, message = check_required_space(list_item["percent_space_required"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
 
@@ -2173,6 +2167,7 @@ def get_json_from_args(module, module_args, vg_include):
     args_dict = {}
     cmd = get_command_const(module_args["snapshot_lvm_action"])
 
+    logger.info("get_json_from_args: BEGIN")
     if not module_args["snapshot_lvm_all_vgs"] and cmd != SnapshotCommand.UMOUNT:
         rc, message = verify_source_lvs_exist(
             module, module_args["snapshot_lvm_vg"], module_args["snapshot_lvm_lv"]
@@ -2189,10 +2184,14 @@ def get_json_from_args(module, module_args, vg_include):
         module_args["snapshot_lvm_lv"],
         vg_include,
     ):
+        logger.info("get_json_from_args: vg %s lv_list %s", str(vg), str(lv_list))
         vg_str = vg["vg_name"]
         for lv in lv_list:
 
             if lv["lv_name"].endswith(module_args["snapshot_lvm_snapset_name"]):
+                logger.info(
+                    "get_json_from_args: already a snapshot for %s", lv["lv_name"]
+                )
                 continue
 
             rc, is_snapshot = lvm_is_snapshot(module, vg_str, lv["lv_name"])
@@ -2204,6 +2203,9 @@ def get_json_from_args(module, module_args, vg_include):
                 )
 
             if is_snapshot:
+                logger.info(
+                    "get_json_from_args: lv %s is a snapshot - skipping", lv["lv_name"]
+                )
                 continue
 
             rc, is_thinpool = lvm_is_thinpool(module, vg_str, lv["lv_name"])
@@ -2214,6 +2216,9 @@ def get_json_from_args(module, module_args, vg_include):
                     None,
                 )
             if is_thinpool:
+                logger.info(
+                    "get_json_from_args: lv %s is a thinpool - skipping", lv["lv_name"]
+                )
                 continue
             volume = {}
             volume["name"] = ("snapshot : " + vg_str + "/" + lv["lv_name"],)
@@ -2238,6 +2243,7 @@ def get_json_from_args(module, module_args, vg_include):
                 volume["all_targets"] = module_args["snapshot_lvm_unmount_all"]
 
             volume_list.append(volume)
+            logger.info("get_json_from_args: adding volume %s", str(volume))
 
     args_dict["volumes"] = volume_list
 
@@ -2401,16 +2407,19 @@ def run_module():
                 volumes=dict(
                     type="list",
                     elements="dict",
+                    default=[],
                     options=dict(
                         name=dict(type="str"),
                         vg=dict(type="str"),
                         lv=dict(type="str"),
-                        percent_space_required=dict(type="int"),
+                        percent_space_required=dict(type="str"),
                         mountpoint=dict(type="str"),
                         mount_origin=dict(type="bool"),
                         fstype=dict(type="str"),
                         options=dict(type="str"),
                         all_targets=dict(type="bool"),
+                        mountpoint_create=dict(type="bool"),
+                        thin_pool=dict(type="str"),
                     ),
                 ),
             ),
@@ -2432,9 +2441,9 @@ def run_module():
     if module.params["snapshot_lvm_vg_include"]:
         vg_include = re.compile(module.params["snapshot_lvm_vg_include"])
 
-    if len(module.params["snapshot_lvm_set"]) > 0:
+    if len(module.params["snapshot_lvm_set"].get("volumes")) > 0:
         cmd_result, snapset_dict = validate_snapset_json(
-            get_command_const(module.params["snapshot_lvm_action"]),
+            cmd,
             module.params["snapshot_lvm_set"],
             False,
         )
