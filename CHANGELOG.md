@@ -1,6 +1,24 @@
 Changelog
 =========
 
+[1.4.0] - 2024-07-15
+--------------------
+
+### New Features
+
+- feat: rewrite snapshot.py as an Ansible module / add support for thin origins (#58)
+
+### Bug Fixes
+
+- fix: add support for EL10 (#66)
+
+### Other Changes
+
+- ci: use tox-lsr 3.3.0 which uses ansible-test 2.17 (#60)
+- ci: tox-lsr 3.4.0 - fix py27 tests; move other checks to py310 (#62)
+- ci: Add supported_ansible_also to .ansible-lint (#63)
+- ci: ansible-lint action now requires absolute directory (#64)
+
 [1.3.3] - 2024-05-21
 --------------------
 
