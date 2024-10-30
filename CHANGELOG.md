@@ -1,6 +1,16 @@
 Changelog
 =========
 
+[1.4.2] - 2024-10-30
+--------------------
+
+### Other Changes
+
+- ci: Add tags to TF workflow, allow more [citest bad] formats (#77)
+- ci: ansible-test action now requires ansible-core version (#78)
+- ci: add YAML header to github action workflow files (#79)
+- refactor: Use vars/RedHat_N.yml symlink for CentOS, Rocky, Alma wherever possible (#81)
+
 [1.4.1] - 2024-08-16
 --------------------
 
