@@ -1,5 +1,5 @@
 ---
-- name: Basic snapshot test
+- name: Basic extend snapshot test
   hosts: all
   vars:
     # only use vgs matching this pattern
@@ -11,27 +11,24 @@
         disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv1
-            size: "10%"
+            size: "15%"
           - name: lv2
-            size: "10%"
+            size: "15%"
       - name: test_vg2
         disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv3
-            size: "10%"
+            size: "15%"
           - name: lv4
-            size: "10%"
+            size: "15%"
       - name: test_vg3
         disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv5
-            size: "10%"
+            size: "15%"
           - name: lv6
-            size: "10%"
-          - name: lv7
-            size: "10%"
-          - name: lv8
-            size: "10%"
+            size: "15%"
+
   tasks:
     - name: Run tests
       block:
@@ -42,7 +39,7 @@
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_percent_space_required: 50
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: snapshot
@@ -56,11 +53,11 @@
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: check
 
-        - name: Extend the snapshots size to 40 percent of the source
+        - name: Extend the snapshots size to 60 percent of the source
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: extend
@@ -73,12 +70,16 @@
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: extend
 
+        # Both LVM and Snapshot Manager have minimum sizes for snapshots.
+        # extend may return changed=false if the original request was
+        # smaller than the minimum snapshot size and the new percentage
+        # is also smaller than the original.
         - name: Assert no changes for extend verify
           assert:
             that: not snapshot_cmd["changed"]
@@ -87,7 +88,7 @@
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: extend
@@ -100,7 +101,7 @@
           include_role:
             name: linux-system-roles.snapshot
           vars:
-            snapshot_lvm_percent_space_required: 40
+            snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
