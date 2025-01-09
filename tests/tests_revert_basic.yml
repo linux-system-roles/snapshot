@@ -11,26 +11,22 @@
         disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv1
-            size: "15%"
+            size: "40%"
           - name: lv2
-            size: "50%"
+            size: "40%"
       - name: test_vg2
         disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv3
-            size: "10%"
+            size: "40%"
           - name: lv4
-            size: "20%"
+            size: "40%"
       - name: test_vg3
         disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
         volumes:
           - name: lv5
-            size: "30%"
+            size: "60%"
           - name: lv6
-            size: "25%"
-          - name: lv7
-            size: "10%"
-          - name: lv8
             size: "10%"
   tasks:
     - name: Run tests

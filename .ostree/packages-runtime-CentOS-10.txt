@@ -1,1 +1,3 @@
 util-linux-core
+snapm
+boom-boot

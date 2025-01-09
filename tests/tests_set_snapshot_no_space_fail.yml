@@ -19,7 +19,7 @@
         - name: Test failure of creating snapshot that is part of a set
           include_tasks: verify-role-failed.yml
           vars:
-            __snapshot_failed_regex: "insufficient space for snapshots in:*"
+            __snapshot_failed_regex: "insufficient space for snapshots in:*|Insufficient free space for snapshot*"
             __snapshot_failed_msg: Role did not fail with no space error
             __snapshot_failed_params:
               snapshot_lvm_action: snapshot
