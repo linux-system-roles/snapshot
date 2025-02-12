@@ -1,5 +1,5 @@
 ---
-- name: Verify the check commmand fails when source LV doesn't exist
+- name: Verify the check command fails when source LV doesn't exist
   hosts: all
   vars:
     test_disk_min_size: "1g"

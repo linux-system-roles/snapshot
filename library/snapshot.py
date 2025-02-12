@@ -476,7 +476,7 @@ def set_up_logging(log_dir="/tmp", log_prefix="snapshot_role"):
 
     handler = make_handler(log_dir, log_prefix, logging.DEBUG)
 
-    # Ansible ansible.builtin.script feature doesn't seperate stdout
+    # Ansible ansible.builtin.script feature doesn't separate stdout
     # and stderr when the text is returned to the calling .yaml. Logging
     # to stdout will cause problems with ansible checking the return
     # strings from the python script.
@@ -2296,7 +2296,7 @@ def revert_cmd(module, module_args, snapset_dict):
     changed = False
 
     if module_args["snapshot_lvm_verify_only"]:
-        # revert re-uses the remove verify since both commands should
+        # revert reuses the remove verify since both commands should
         # cause the snapshot to no longer exist
         rc, message = remove_verify_snapshot_set(module, snapset_dict)
     else:

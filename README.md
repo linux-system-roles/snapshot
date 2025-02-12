@@ -44,7 +44,7 @@ This variable is required. It supports one of the following values:
 
 - `mount`:  Mount a filesystem on a mount point
 
-- `umount`: Unmount a filesytem
+- `umount`: Unmount a filesystem
 
 ### snapshot_lvm_set
 

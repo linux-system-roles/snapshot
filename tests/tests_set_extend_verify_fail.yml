@@ -1,5 +1,5 @@
 ---
-- name: Verify the extend verify commmand fails when space too low
+- name: Verify the extend verify command fails when space too low
   hosts: all
   vars:
     test_disk_min_size: "1g"
