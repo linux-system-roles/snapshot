@@ -20,6 +20,7 @@ SNAPM_DEFAULT_SIZE_POLICY = "20%SIZE"
 SNAPM_MIN_VERSION = "0.4.0"
 
 def use_snapshot_manager():
+    global snapshot_manager_available
     if Version(snapm.__version__) < Version(SNAPM_MIN_VERSION):
         return False
     snapshot_manager_available = False
