@@ -1,6 +1,28 @@
 Changelog
 =========
 
+[1.5.0] - 2025-05-19
+--------------------
+
+### New Features
+
+- feat: add support for snapshot manager backing the role (#97)
+
+### Other Changes
+
+- ci: ansible-plugin-scan is disabled for now (#87)
+- ci: bump ansible-lint to v25; provide collection requirements for ansible-lint (#90)
+- ci: Check spelling with codespell (#91)
+- ci: Add test plan that runs CI tests and customize it for each role (#92)
+- ci: In test plans, prefix all relate variables with SR_ (#93)
+- ci: Fix bug with ARTIFACTS_URL after prefixing with SR_ (#94)
+- ci: several changes related to new qemu test, ansible-lint, python versions, ubuntu versions (#95)
+- ci: use tox-lsr 3.6.0; improve qemu test logging (#98)
+- ci: skip storage scsi, nvme tests in github qemu ci (#99)
+- ci: Bump sclorg/testing-farm-as-github-action from 3 to 4 (#100)
+- ci: bump tox-lsr to 3.8.0; rename qemu/kvm tests (#101)
+- ci: Add Fedora 42; use tox-lsr 3.9.0; use lsr-report-errors for qemu tests (#105)
+
 [1.4.3] - 2025-01-09
 --------------------
 
