@@ -1,3 +1,7 @@
+from __future__ import absolute_import, division, print_function
+
+__metaclass__ = type
+
 import logging
 
 from ansible.module_utils.snapshot_lsr.lvm import (
