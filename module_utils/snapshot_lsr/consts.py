@@ -58,3 +58,10 @@ class SnapshotStatus:
     ERROR_UMOUNT_NOT_MOUNTED = 38
     ERROR_CREATE_FAILED = 39
     ERROR_SNAPM_INTERNAL_ERROR = 40
+
+
+COMMAND_ENV = {"LC_ALL": "C", "LVM_COMMAND_PROFILE": "lvmdbusd"}
+
+
+def get_command_env():
+    return COMMAND_ENV

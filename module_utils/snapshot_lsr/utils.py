@@ -7,7 +7,11 @@ import os
 from os.path import join as path_join
 import stat
 
-from ansible.module_utils.snapshot_lsr.consts import SnapshotCommand, SnapshotStatus
+from ansible.module_utils.snapshot_lsr.consts import (
+    SnapshotCommand,
+    SnapshotStatus,
+    get_command_env,
+)
 from ansible.module_utils.snapshot_lsr.lvm_utils import (
     to_bool,
     get_mounted_device,
@@ -80,7 +84,9 @@ def get_fs_mount_points(module, block_path):
     ]
     mount_list = list()
 
-    rc, output, stderr = module.run_command(find_mnt_command)
+    rc, output, stderr = module.run_command(
+        find_mnt_command, environ_update=get_command_env()
+    )
     if rc:
         logger.error("get_fs_mount_points' exited with code : %d: %s", rc, stderr)
         return None
@@ -182,7 +188,9 @@ def umount(module, umount_target, all_targets, check_mode):
             umount_command
         )
 
-    rc, output, stderr = module.run_command(umount_command)
+    rc, output, stderr = module.run_command(
+        umount_command, environ_update=get_command_env()
+    )
 
     if rc != 0:
         logger.error("failed to unmount %s: %s: %s", umount_target, output, stderr)
@@ -544,7 +552,9 @@ def mount(
             mount_command
         )
 
-    rc, _output, stderr = module.run_command(mount_command)
+    rc, _output, stderr = module.run_command(
+        mount_command, environ_update=get_command_env()
+    )
 
     if rc != 0:
         logger.error("failed to mount: ".join(mount_command))
