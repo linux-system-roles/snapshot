@@ -196,7 +196,7 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     rc, message = verify_snapset_source_lvs_exist(module, snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
-        return {rc, message, changed}
+        return {"return_code": rc, "errors": message, "changed": changed}
 
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
