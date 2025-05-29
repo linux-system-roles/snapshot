@@ -191,7 +191,6 @@ changed:
 """
 
 import logging
-import os
 import re
 
 from ansible.module_utils.basic import AnsibleModule
@@ -369,9 +368,7 @@ def run_module():
 
 def main():
     set_up_logging()
-    # Ensure that we get consistent output for parsing stdout/stderr and that we
-    # are using the lvmdbusd profile.
-    os.environ["LC_ALL"] = "C"
+
     run_module()
 
 

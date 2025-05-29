@@ -7,7 +7,11 @@ import logging
 import math
 import sys
 
-from ansible.module_utils.snapshot_lsr.consts import SnapshotStatus, SnapshotCommand
+from ansible.module_utils.snapshot_lsr.consts import (
+    SnapshotStatus,
+    SnapshotCommand,
+    get_command_env,
+)
 from ansible.module_utils.snapshot_lsr.lvm_utils import (
     percentof,
     round_up,
@@ -172,7 +176,9 @@ def lvm_full_report_json(module):
         "json",
     ]
 
-    rc, output, stderr = module.run_command(report_command)
+    rc, output, stderr = module.run_command(
+        report_command, environ_update=get_command_env()
+    )
 
     if rc:
         logger.info("'fullreport' exited with code : {rc}", rc=rc)
@@ -243,7 +249,9 @@ def lvm_list_json(module, vg_name, lv_name, vg_include):
 def lvm_get_attr(module, vg_name, lv_name):
     lvs_command = ["lvs", "--reportformat", "json", vg_name + "/" + lv_name]
 
-    rc, output, stderr = module.run_command(lvs_command)
+    rc, output, stderr = module.run_command(
+        lvs_command, environ_update=get_command_env()
+    )
 
     if rc == LVM_NOTFOUND_RC:
         return SnapshotStatus.SNAPSHOT_OK, False
@@ -303,7 +311,9 @@ def lvm_is_owned(lv_name, suffix):
 def lvm_is_inuse(module, vg_name, lv_name):
     lvs_command = ["lvs", "--reportformat", "json", vg_name + "/" + lv_name]
 
-    rc, output, stderr = module.run_command(lvs_command)
+    rc, output, stderr = module.run_command(
+        lvs_command, environ_update=get_command_env()
+    )
 
     if rc == LVM_NOTFOUND_RC:
         return SnapshotStatus.SNAPSHOT_OK, False
@@ -369,7 +379,9 @@ def lvm_snapshot_remove(module, vg_name, snapshot_name, check_mode):
     if check_mode:
         return rc, "Would run command " + " ".join(remove_command)
 
-    rc, _output, stderr = module.run_command(remove_command)
+    rc, _output, stderr = module.run_command(
+        remove_command, environ_update=get_command_env()
+    )
 
     if rc:
         return SnapshotStatus.ERROR_REMOVE_FAILED, stderr
@@ -405,7 +417,9 @@ def revert_lv(module, vg_name, snapshot_name, check_mode):
     if check_mode:
         return rc, "Would run command " + " ".join(revert_command)
 
-    rc, output, stderr = module.run_command(revert_command)
+    rc, output, stderr = module.run_command(
+        revert_command, environ_update=get_command_env()
+    )
 
     if rc:
         return SnapshotStatus.ERROR_REVERT_FAILED, stderr
@@ -464,7 +478,9 @@ def extend_lv_snapshot(
     if check_mode:
         return rc, "Would run command " + " ".join(extend_command), changed
 
-    rc, output, stderr = module.run_command(extend_command)
+    rc, output, stderr = module.run_command(
+        extend_command, environ_update=get_command_env()
+    )
 
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return SnapshotStatus.ERROR_EXTEND_FAILED, stderr, changed
@@ -614,7 +630,9 @@ def snapshot_lv(module, vg_name, lv_name, suffix, snap_size, check_mode):
     if check_mode:
         return rc, "Would run command " + " ".join(snapshot_command)
 
-    rc, output, stderr = module.run_command(snapshot_command)
+    rc, output, stderr = module.run_command(
+        snapshot_command, environ_update=get_command_env()
+    )
 
     if rc:
         return SnapshotStatus.ERROR_SNAPSHOT_FAILED, stderr

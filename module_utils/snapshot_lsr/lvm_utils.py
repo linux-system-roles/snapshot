@@ -6,7 +6,7 @@ import argparse
 import logging
 import json
 
-from ansible.module_utils.snapshot_lsr.consts import SnapshotStatus
+from ansible.module_utils.snapshot_lsr.consts import SnapshotStatus, get_command_env
 
 logger = logging.getLogger("snapshot-role")
 
@@ -27,7 +27,9 @@ def lvm_get_vg_lv_from_devpath(module, devpath):
 
     lvs_command = ["lvs", "--reportformat", "json", devpath]
 
-    rc, output, _stderr = module.run_command(lvs_command)
+    rc, output, _stderr = module.run_command(
+        lvs_command, environ_update=get_command_env()
+    )
 
     try:
         lvs_json = json.loads(output)
@@ -81,7 +83,9 @@ def lvm_lv_exists(module, vg_name, lv_name):
     # check for VG
     lvs_command = ["lvs", vg_name]
 
-    rc, _output, _stderr = module.run_command(lvs_command)
+    rc, _output, _stderr = module.run_command(
+        lvs_command, environ_update=get_command_env()
+    )
     if rc == 0:
         vg_exists = True
 
@@ -89,7 +93,9 @@ def lvm_lv_exists(module, vg_name, lv_name):
         return SnapshotStatus.SNAPSHOT_OK, vg_exists, lv_exists
 
     lvs_command = ["lvs", vg_name + "/" + lv_name]
-    rc, _output, _stderr = module.run_command(lvs_command)
+    rc, _output, _stderr = module.run_command(
+        lvs_command, environ_update=get_command_env()
+    )
     if rc == 0:
         lv_exists = True
 
