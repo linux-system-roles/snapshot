@@ -235,7 +235,8 @@ def validate_snapset_args(module, cmd, module_args, vg_include):
 
 
 def validate_json_request(snapset_json, check_percent_space_required):
-
+    seen_volumes = set()
+    duplicates = set()
     if "name" not in snapset_json:
         return (SnapshotStatus.ERROR_JSON_PARSER_ERROR, "snapset must include a name")
 
@@ -257,6 +258,11 @@ def validate_json_request(snapset_json, check_percent_space_required):
                 SnapshotStatus.ERROR_JSON_PARSER_ERROR,
                 "snapset lv entry not found",
             )
+        volume = list_item["vg"] + "/" + list_item["lv"]
+        if volume in seen_volumes:
+            duplicates.add(volume)
+        else:
+            seen_volumes.add(volume)
 
         if check_percent_space_required:
 
@@ -268,6 +274,12 @@ def validate_json_request(snapset_json, check_percent_space_required):
             rc, message = check_required_space(list_item["percent_space_required"])
             if rc != SnapshotStatus.SNAPSHOT_OK:
                 return rc, message
+
+    if duplicates:
+        return (
+            SnapshotStatus.ERROR_VERIFY_DUPLICATE_IN_SET,
+            "duplicates in set: " + str(duplicates),
+        )
 
     return SnapshotStatus.SNAPSHOT_OK, ""
 
