@@ -54,6 +54,7 @@ Sets are defined in the following format:
 ```yaml
     snapshot_lvm_set:
       name: snapset1
+      bootable: true
       volumes:
         - name: snapshot VG1 LV1
           vg: test_vg1
@@ -84,6 +85,7 @@ that it applies, for example:
 ```yaml
     snapshot_lvm_set:
       name: snapset1
+      bootable: false
       volumes:
         - name: snapshot VG1 LV1
           vg: test_vg1
@@ -242,6 +244,18 @@ pattern that matches the names of the volume groups you want to use and
 the rest will be excluded.  For example,
 `snapshot_lvm_vg_include: "^sql_db_"` will only operate on volume groups
 whose names start with `sql_db_`.  This uses the Python `re.search`.
+
+### snapshot_lvm_bootable
+
+Boolean - default is unset.  Only supported on operating systems that
+support snapshot manager (snapm).  When set to true, and passed to the
+'snapshot' command, the snapshot created will have a corresponding boot
+entry.  The boot entry will be removed when the snapset is removed.
+
+### snapshot_use_copr (EXPERIMENTAL)
+
+Boolean - default is unset - if you want to enable the copr repo to use the
+latest development version of snapm, use `snapshot_use_copr: true`
 
 ### Variables Exported by the Role
 
