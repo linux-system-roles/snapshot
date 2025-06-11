@@ -3,12 +3,61 @@
 - name: Set platform/version specific variables
   include_tasks: tasks/set_vars.yml
 
+- name: Enable copr if requested
+  include_tasks: enable_copr.yml
+  when: snapshot_use_copr | d(false)
+
 - name: Ensure required packages are installed
   package:
     name: "{{ __snapshot_packages }}"
     state: present
     use: "{{ (__snapshot_is_ostree | d(false)) |
               ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
+
+- name: Get snapm version
+  check_mode: false
+  command: snapm --version
+  changed_when: false
+  register: __snapshot_snapm_version_output
+  # Ignore errors as snapm may not be available
+  ignore_errors: true
+
+- name: Set snapm availability fact
+  set_fact:
+    __snapshot_snapm_available: "{{ not __snapshot_snapm_version_output.failed }}"
+
+- name: Set snapm version
+  set_fact:
+    __snapshot_snapm_version: "{{ (__snapshot_snapm_version_output.stdout) }}"
+  when:
+    - __snapshot_snapm_available
+
+- name: Package snapm version must be 0.4 or later
+  fail:
+    msg: >
+      Package snapm version {{ __snapshot_snapm_version }} is too old -
+      must be 0.4 or later
+  when:
+    - __snapshot_snapm_available
+    - __snapshot_snapm_version is version("0.4", "<")
+
+- name: Package snapm required for bootable snapsets
+  fail:
+    msg: >
+      Package snapm is required for bootable snapsets
+  when:
+    - not __snapshot_snapm_available | d(false)
+    - snapshot_lvm_bootable | d(false)
+
+- name: Package snapm version must be 0.5 or later bootable snapsets
+  fail:
+    msg: >
+      Package snapm version {{ __snapshot_snapm_version }} is too old -
+      must be 0.5 or later to use bootable snapsets
+  when:
+    - __snapshot_snapm_available
+    - __snapshot_snapm_version is version("0.5", "<")
+    - snapshot_lvm_bootable | d(false)
 
 - name: Run snapshot module and handle errors
   block:
@@ -19,6 +68,7 @@
         snapshot_lvm_all_vgs: "{{ snapshot_lvm_all_vgs | d(false) }}"
         snapshot_lvm_verify_only: "{{ snapshot_lvm_verify_only | d(false) }}"
         snapshot_lvm_mount_origin: "{{ snapshot_lvm_mount_origin | d(false) }}"
+        snapshot_lvm_bootable: "{{ snapshot_lvm_bootable | d(false) }}"
         snapshot_lvm_mountpoint_create: "{{
           snapshot_lvm_mountpoint_create | d(false) }}"
         snapshot_lvm_unmount_all: "{{ snapshot_lvm_unmount_all | d(false) }}"
