@@ -1,0 +1,6 @@
+---
+# Primarily for testing unreleased versions
+- name: Enable snapm copr on Fedora
+  command: dnf -y copr enable packit/snapshotmanager-snapm-357
+  when: ansible_facts['distribution'] == 'Fedora'
+  changed_when: true
