@@ -1,6 +1,18 @@
 Changelog
 =========
 
+[1.5.2] - 2025-06-16
+--------------------
+
+### Bug Fixes
+
+- fix: correct issues with LC_ALL and LVM_COMMAND_PROFILE and snapshot manager (#112)
+
+### Other Changes
+
+- ci: Add support for bootc end-to-end validation tests (#110)
+- ci: Use ansible 2.19 for fedora 42 testing; support python 3.13 (#111)
+
 [1.5.1] - 2025-05-19
 --------------------
 
