@@ -95,6 +95,11 @@ options:
             to a regex pattern that matches the names of the volume groups you want to use and
             the rest will be excluded
         type: str
+    snapshot_lvm_bootable:
+        description: Only supported on operating systems that support snapshot manager (snapm).
+            When set to true, and passed to the 'snapshot' command, the snapshot created will have
+            a corresponding boot entry.  The boot entry will be removed when the snapset is removed.
+        type: bool
     snapshot_lvm_set:
         description: set of volumes
         type: dict
@@ -102,6 +107,9 @@ options:
             name:
                 description: name of set
                 type: str
+            bootable:
+                description: create snapshot with boot menu entry (requires snapm)
+                type: bool
             volumes:
                 description: list of volumes
                 type: list
@@ -282,6 +290,7 @@ def run_module():
         snapshot_lvm_all_vgs=dict(type="bool"),
         snapshot_lvm_verify_only=dict(type="bool"),
         snapshot_lvm_mount_origin=dict(type="bool"),
+        snapshot_lvm_bootable=dict(type="bool"),
         snapshot_lvm_mountpoint_create=dict(type="bool"),
         snapshot_lvm_unmount_all=dict(type="bool"),
         snapshot_lvm_percent_space_required=dict(type="str"),
@@ -296,6 +305,7 @@ def run_module():
             type="dict",
             options=dict(
                 name=dict(type="str"),
+                bootable=dict(type="bool"),
                 volumes=dict(
                     type="list",
                     elements="dict",
