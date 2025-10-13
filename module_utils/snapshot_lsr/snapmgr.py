@@ -200,6 +200,10 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
+    if "bootable" in snapset_json:
+        bootable = snapset_json["bootable"]
+    else:
+        bootable = False
 
     source_list = mgr_get_source_list_for_create(volume_list)
 
@@ -210,7 +214,10 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     try:
         manager.create_snapshot_set(
-            snapset_name, source_list, SNAPM_DEFAULT_SIZE_POLICY
+            snapset_name,
+            source_list,
+            SNAPM_DEFAULT_SIZE_POLICY,
+            boot=bootable,
         )
         changed = True
     except snapm.SnapmError as snap_err:

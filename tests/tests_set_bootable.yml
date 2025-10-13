@@ -1,0 +1,142 @@
+---
+- name: Snapshot a set of volumes with snapshot_lvm_bootable set to true
+  hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+          - name: lv2
+            size: "50%"
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "10%"
+          - name: lv4
+            size: "20%"
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "30%"
+          - name: lv6
+            size: "25%"
+          - name: lv7
+            size: "10%"
+          - name: lv8
+            size: "10%"
+    snapshot_test_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15
+  tasks:
+    - name: Load test variables
+      include_vars:
+        file: vars/rh_distros_vars.yml
+      when: __snapshot_is_ostree is not defined
+
+    - name: Run the snapshot role to define __snapshot_snapm_available
+      include_role:
+        name: linux-system-roles.snapshot
+
+    - name: Test is only supported on platforms with snapm support
+      debug:
+        msg: >
+          This test is only supported on platforms with snapm support.
+      when:
+          - not __snapshot_snapm_available
+
+    - name: End test
+      meta: end_play
+      when:
+          - not __snapshot_snapm_available
+
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot set of LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_bootable: true
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert changes for create snapset
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Run the snapshot role to verify the set of snapshots for the LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: check
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
+
+        - name: Create snapset again for idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for create snapset
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Run the snapshot role remove the set
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert changes for remove snapset
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Run the snapshot role to verify the set is removed
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
+
+        - name: Remove again to check idempotence
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for remove snapset
+          assert:
+            that: not snapshot_cmd["changed"]
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
