@@ -28,9 +28,17 @@
 
 - name: Set snapm version
   set_fact:
-    __snapshot_snapm_version: "{{ (__snapshot_snapm_version_output.stdout) }}"
-  when:
-    - __snapshot_snapm_available
+    __snapshot_snapm_version: "{{ __snapshot_snapm_version_output.stdout }}"
+  when: __snapshot_snapm_available
+
+# Determine if bootable support is needed
+# If snapshot_lvm_bootable is set to true, or any of the volumes in snapshot_lvm_set
+# have bootable set to true, then bootable support is needed.
+- name: Set needs bootable support
+  set_fact:
+    __snapshot_needs_bootable_support: "{{ snapshot_lvm_bootable or (snapshot_lvm_set |
+      selectattr('bootable', 'defined') |
+      selectattr('bootable') | list | length > 0) }}"
 
 - name: Package snapm version must be 0.4 or later
   fail:
@@ -41,23 +49,24 @@
     - __snapshot_snapm_available
     - __snapshot_snapm_version is version("0.4", "<")
 
-- name: Package snapm required for bootable snapsets
-  fail:
-    msg: >
-      Package snapm is required for bootable snapsets
-  when:
-    - not __snapshot_snapm_available
-    - snapshot_lvm_bootable | d(false)
-
-- name: Package snapm version must be 0.5 or later bootable snapsets
+- name: Package snapm must available and be version 0.5 or later for bootable snapsets
   fail:
     msg: >
       Package snapm version {{ __snapshot_snapm_version }} is too old -
       must be 0.5 or later to use bootable snapsets
   when:
-    - __snapshot_snapm_available
-    - __snapshot_snapm_version is version("0.5", "<")
-    - snapshot_lvm_bootable | d(false)
+    - not __snapshot_snapm_available or
+      __snapshot_snapm_version is version("0.5", "<")
+    - __snapshot_needs_bootable_support
+    - snapshot_fail_if_too_old | d(true)
+
+- name: Package snapm must available and be version 0.5 or later for bootable snapsets
+  meta: end_host
+  when:
+    - not __snapshot_snapm_available or
+      __snapshot_snapm_version is version("0.5", "<")
+    - __snapshot_needs_bootable_support
+    - not snapshot_fail_if_too_old | d(true)
 
 - name: Run snapshot module and handle errors
   when: snapshot_lvm_action is defined

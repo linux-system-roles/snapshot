@@ -247,7 +247,7 @@ whose names start with `sql_db_`.  This uses the Python `re.search`.
 
 ### snapshot_lvm_bootable
 
-Boolean - default is unset.  Only supported on operating systems that
+Boolean - default is false.  Only supported on operating systems that
 support snapshot manager (snapm).  When set to true, and passed to the
 'snapshot' command, the snapshot created will have a corresponding boot
 entry.  The boot entry will be removed when the snapset is removed.
