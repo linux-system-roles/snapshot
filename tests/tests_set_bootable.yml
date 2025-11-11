@@ -49,27 +49,13 @@
           vg: test_vg3
           lv: lv7
           percent_space_required: 15
+    snapshot_lvm_bootable: true
+    snapshot_fail_if_too_old: false
   tasks:
     - name: Load test variables
       include_vars:
         file: vars/rh_distros_vars.yml
       when: __snapshot_is_ostree is not defined
-
-    - name: Run the snapshot role to define __snapshot_snapm_available
-      include_role:
-        name: linux-system-roles.snapshot
-
-    - name: Test is only supported on platforms with snapm support
-      debug:
-        msg: >
-          This test is only supported on platforms with snapm support.
-      when:
-          - not __snapshot_snapm_available
-
-    - name: End test
-      meta: end_play
-      when:
-          - not __snapshot_snapm_available
 
     - name: Run tests
       block:
@@ -81,7 +67,6 @@
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_action: snapshot
-            snapshot_lvm_bootable: true
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
         - name: Assert changes for create snapset
