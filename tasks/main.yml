@@ -42,34 +42,36 @@
 
 - name: Package snapm version must be 0.4 or later
   fail:
-    msg: >
+    msg: >-
       Package snapm version {{ __snapshot_snapm_version }} is too old -
       must be 0.4 or later
   when:
     - __snapshot_snapm_available
     - __snapshot_snapm_version is version("0.4", "<")
 
-- name: Package snapm must available and be version 0.5 or later for bootable snapsets
+- name: Package snapm must available for bootable snapsets
   fail:
-    msg: >
-      Package snapm version {{ __snapshot_snapm_version }} is too old -
-      must be 0.5 or later to use bootable snapsets
+    msg: >-
+      Package snapm version 0.5 or later is required to use bootable snapsets
   when:
-    - not __snapshot_snapm_available or
-      __snapshot_snapm_version is version("0.5", "<")
+    - not __snapshot_snapm_available
     - __snapshot_needs_bootable_support
-    - snapshot_fail_if_too_old | d(true)
 
-- name: Package snapm must available and be version 0.5 or later for bootable snapsets
-  meta: end_host
+- name: Package snapm must be version 0.5 or later for bootable snapsets
+  fail:
+    msg: >-
+      Package snapm version {{ __snapshot_snapm_version }} is too old -
+      version 0.5 or later is required to use bootable snapsets
   when:
     - not __snapshot_snapm_available or
       __snapshot_snapm_version is version("0.5", "<")
     - __snapshot_needs_bootable_support
-    - not snapshot_fail_if_too_old | d(true)
 
 - name: Run snapshot module and handle errors
-  when: snapshot_lvm_action is defined
+  when:
+    - snapshot_lvm_action is defined
+    - not __snapshot_needs_bootable_support or (__snapshot_snapm_available and
+      __snapshot_snapm_version is version("0.5", ">="))
   block:
     - name: Run snapshot module {{ snapshot_lvm_action }}
       snapshot:
