@@ -171,6 +171,11 @@ id="toc-snapshot_lvm_mount_options">snapshot_lvm_mount_options</a></li>
 id="toc-snapshot_lvm_unmount_all">snapshot_lvm_unmount_all</a></li>
 <li><a href="#snapshot_lvm_vg_include"
 id="toc-snapshot_lvm_vg_include">snapshot_lvm_vg_include</a></li>
+<li><a href="#snapshot_lvm_bootable"
+id="toc-snapshot_lvm_bootable">snapshot_lvm_bootable</a></li>
+<li><a href="#snapshot_use_copr-experimental"
+id="toc-snapshot_use_copr-experimental">snapshot_use_copr
+(EXPERIMENTAL)</a></li>
 <li><a href="#variables-exported-by-the-role"
 id="toc-variables-exported-by-the-role">Variables Exported by the
 Role</a>
@@ -226,27 +231,28 @@ number of volumes. Sets are defined in the following format:</p>
 <div class="sourceCode" id="cb2"><pre
 class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">snapshot_lvm_set</span><span class="kw">:</span></span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapset1</span></span>
-<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">volumes</span><span class="kw">:</span></span>
-<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG1 LV1</span></span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg1</span></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv1</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv1_mp</span></span>
-<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV3</span></span>
-<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
-<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv3</span></span>
-<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv3_mp</span></span>
-<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV4</span></span>
-<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
-<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv4</span></span>
-<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv4_mp</span></span>
-<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG3 LV7</span></span>
-<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg3</span></span>
-<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv7</span></span>
-<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv7_mp</span></span>
-<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span></code></pre></div>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">bootable</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG1 LV1</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg1</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv1</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv1_mp</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV3</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv3</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv3_mp</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV4</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv4</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv4_mp</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG3 LV7</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg3</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv7</span></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv7_mp</span></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span></code></pre></div>
 <p>If the user is indicating the mount action and wants the origin of
 the snapshot to be mounted rather than the snapshot, the set would be
 defined with the additional field "mount_origin" for any entry that it
@@ -254,31 +260,32 @@ applies, for example:</p>
 <div class="sourceCode" id="cb3"><pre
 class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="at">    </span><span class="fu">snapshot_lvm_set</span><span class="kw">:</span></span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapset1</span></span>
-<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">volumes</span><span class="kw">:</span></span>
-<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG1 LV1</span></span>
-<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg1</span></span>
-<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv1</span></span>
-<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv1_mp</span></span>
-<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
-<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV3</span></span>
-<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
-<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv3</span></span>
-<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv3_mp</span></span>
-<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
-<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV4</span></span>
-<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
-<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv4</span></span>
-<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv4_mp</span></span>
-<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
-<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG3 LV7</span></span>
-<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg3</span></span>
-<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv7</span></span>
-<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv7_mp</span></span>
-<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
-<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">bootable</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="at">      </span><span class="fu">volumes</span><span class="kw">:</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG1 LV1</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg1</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv1</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv1_mp</span></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV3</span></span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv3</span></span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv3_mp</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG2 LV4</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg2</span></span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv4</span></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv4_mp</span></span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">false</span></span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a><span class="at">        </span><span class="kw">-</span><span class="at"> </span><span class="fu">name</span><span class="kw">:</span><span class="at"> snapshot VG3 LV7</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">vg</span><span class="kw">:</span><span class="at"> test_vg3</span></span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">lv</span><span class="kw">:</span><span class="at"> lv7</span></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mountpoint</span><span class="kw">:</span><span class="at"> /mnt/lv7_mp</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">percent_space_required</span><span class="kw">:</span><span class="at"> </span><span class="dv">15</span></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a><span class="at">          </span><span class="fu">mount_origin</span><span class="kw">:</span><span class="at"> </span><span class="ch">true</span></span></code></pre></div>
 <p>The mount_origin flag defaults to false, so it is not necessary when
 the user is mounting the snapshot rather than the origin.</p>
 <h2 id="snapshot_lvm_snapset_name">snapshot_lvm_snapset_name</h2>
@@ -387,6 +394,16 @@ names of the volume groups you want to use and the rest will be
 excluded. For example, <code>snapshot_lvm_vg_include: "^sql_db_"</code>
 will only operate on volume groups whose names start with
 <code>sql_db_</code>. This uses the Python <code>re.search</code>.</p>
+<h2 id="snapshot_lvm_bootable">snapshot_lvm_bootable</h2>
+<p>Boolean - default is false. Only supported on operating systems that
+support snapshot manager (snapm). When set to true, and passed to the
+'snapshot' command, the snapshot created will have a corresponding boot
+entry. The boot entry will be removed when the snapset is removed.</p>
+<h2 id="snapshot_use_copr-experimental">snapshot_use_copr
+(EXPERIMENTAL)</h2>
+<p>Boolean - default is unset - if you want to enable the copr repo to
+use the latest development version of snapm, use
+<code>snapshot_use_copr: true</code></p>
 <h2 id="variables-exported-by-the-role">Variables Exported by the
 Role</h2>
 <h3 id="snapshot_facts">snapshot_facts</h3>
