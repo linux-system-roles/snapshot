@@ -50,7 +50,6 @@
           lv: lv7
           percent_space_required: 15
     snapshot_lvm_bootable: true
-    snapshot_fail_if_too_old: false
   tasks:
     - name: Load test variables
       include_vars:
@@ -121,6 +120,13 @@
         - name: Assert no changes for remove snapset
           assert:
             that: not snapshot_cmd["changed"]
+      rescue:
+        - name: Check if error is due to snapm version too old
+          fail:
+            msg: Unexpected error occurred {{ ansible_failed_result | to_nice_json }}
+          when: not ansible_failed_result.msg is search(err_msg)
+          vars:
+            err_msg: Package snapm .*version 0.5 or later is required to use bootable snapsets
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml
