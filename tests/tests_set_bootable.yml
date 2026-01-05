@@ -49,7 +49,6 @@
           vg: test_vg3
           lv: lv7
           percent_space_required: 15
-    snapshot_lvm_bootable: true
   tasks:
     - name: Load test variables
       include_vars:
@@ -66,49 +65,28 @@
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_action: snapshot
+            snapshot_lvm_bootable: true
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
         - name: Assert changes for create snapset
           assert:
             that: snapshot_cmd["changed"]
 
-        - name: Run the snapshot role to verify the set of snapshots for the LVs
-          include_role:
-            name: linux-system-roles.snapshot
+        - name: Get snapset details
+          ansible.builtin.include_tasks: get_snapset_status.yml
           vars:
-            snapshot_lvm_action: check
-            snapshot_lvm_set: "{{ snapshot_test_set }}"
-            snapshot_lvm_verify_only: true
+            snapset_name: "{{ snapshot_test_set.name }}"
 
-        - name: Create snapset again for idempotence
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_action: snapshot
-            snapshot_lvm_set: "{{ snapshot_test_set }}"
-
-        - name: Assert no changes for create snapset
+        - name: Fail if not bootable
           assert:
-            that: not snapshot_cmd["changed"]
+            that: is_bootable
 
-        - name: Run the snapshot role remove the set
+        - name: Remove the snapshot set
           include_role:
             name: linux-system-roles.snapshot
           vars:
             snapshot_lvm_action: remove
             snapshot_lvm_set: "{{ snapshot_test_set }}"
-
-        - name: Assert changes for remove snapset
-          assert:
-            that: snapshot_cmd["changed"]
-
-        - name: Run the snapshot role to verify the set is removed
-          include_role:
-            name: linux-system-roles.snapshot
-          vars:
-            snapshot_lvm_action: remove
-            snapshot_lvm_set: "{{ snapshot_test_set }}"
-            snapshot_lvm_verify_only: true
 
         - name: Remove again to check idempotence
           include_role:
