@@ -1,0 +1,15 @@
+# get_snapset_status.yml
+- name: Invoke snapm for {{ snapset_name }}
+  ansible.builtin.command: "snapm snapset show {{ snapset_name }} -j"
+  register: snapm_raw
+  changed_when: false
+
+- name: Parse and set facts
+  ansible.builtin.set_fact:
+    # Extracting the first dictionary from the JSON list
+    _raw_data: "{{ snapm_raw.stdout | from_json | first }}"
+
+- name: Define reusable variables
+  ansible.builtin.set_fact:
+    is_bootable: "{{ _raw_data.Bootable | bool }}"
+    boot_entries_list: "{{ _raw_data.BootEntries.values() | list }}"

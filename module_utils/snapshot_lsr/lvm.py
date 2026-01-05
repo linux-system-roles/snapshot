@@ -1209,6 +1209,19 @@ def snapshot_create_set(module, snapset_json, check_mode):
 
 def snapshot_set(module, snapset_json, check_mode):
     changed = False
+
+    # If this function has been called with bootable snapshot requested, return error
+    # because snapm is required for bootable snapshots.
+    if (
+        snapset_json["snapshot_lvm_bootable"] is True
+        or snapset_json["bootable"] is True
+    ):
+        return (
+            SnapshotStatus.ERROR_BOOTABLE_NOT_SUPPORTED,
+            "Bootable snapshots are not supported without snapm",
+            changed,
+        )
+
     rc, message = verify_snapset_source_lvs_exist(module, snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message, changed
