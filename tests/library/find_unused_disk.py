@@ -80,7 +80,6 @@ import re
 from ansible.module_utils.basic import AnsibleModule
 from ansible.module_utils.size import Size
 
-
 SYS_CLASS_BLOCK = "/sys/class/block/"
 IGNORED_DEVICES = [re.compile(r"^/dev/nullb\d+$")]
 
