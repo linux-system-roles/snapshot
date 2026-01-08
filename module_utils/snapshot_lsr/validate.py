@@ -332,7 +332,12 @@ def validate_json_umount(snapset_dict):
     return SnapshotStatus.SNAPSHOT_OK, ""
 
 
-def validate_snapset_json(cmd, snapset_dict, verify_only):
+def validate_snapset_json(cmd, module_args, verify_only):
+
+    snapset_dict = module_args["snapshot_lvm_set"]
+
+    if module_args["snapshot_lvm_bootable"]:
+        snapset_dict["snapshot_lvm_bootable"] = module_args["snapshot_lvm_bootable"]
 
     if cmd == SnapshotCommand.SNAPSHOT:
         rc, message = validate_json_request(snapset_dict, True)
