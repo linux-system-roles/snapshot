@@ -4,14 +4,14 @@ __snapshot_base_packages_7_8: ["lvm2", "util-linux"]
 __snapshot_base_packages_other: ["lvm2", "util-linux-core"]
 __snapshot_base_packages: "{{ __snapshot_base_packages_7_8
   if (__snapshot_is_rh_distro and
-      ansible_distribution_version is version('9', '<'))
+      ansible_facts['distribution_version'] is version('9', '<'))
   else __snapshot_base_packages_other }}"
 __snapshot_extra_packages: ["boom-boot", "snapm"]
 __snapshot_packages: "{{ __snapshot_base_packages + __snapshot_extra_packages
   if ((__snapshot_is_rh_distro and
-       ansible_distribution_version is version('9.6', '>=')) or
-      (ansible_distribution == 'Fedora' and
-       ansible_distribution_version is version('41', '>=')))
+       ansible_facts['distribution_version'] is version('9.6', '>=')) or
+      (ansible_facts['distribution'] == 'Fedora' and
+       ansible_facts['distribution_version'] is version('41', '>=')))
   else __snapshot_base_packages }}"
 __snapshot_services: []
 # python to use on managed nodes for snapshot.py
@@ -40,8 +40,8 @@ __snapshot_rh_distros:
 __snapshot_rh_distros_fedora: "{{ __snapshot_rh_distros + ['Fedora'] }}"
 
 # Use this in conditionals to check if distro is Red Hat or clone
-__snapshot_is_rh_distro: "{{ ansible_distribution in __snapshot_rh_distros }}"
+__snapshot_is_rh_distro: "{{ ansible_facts['distribution'] in __snapshot_rh_distros }}"
 
 # Use this in conditionals to check if distro is Red Hat or clone, or Fedora
-__snapshot_is_rh_distro_fedora: "{{ ansible_distribution in __snapshot_rh_distros_fedora }}"
+__snapshot_is_rh_distro_fedora: "{{ ansible_facts['distribution'] in __snapshot_rh_distros_fedora }}"
 # END - DO NOT EDIT THIS BLOCK - rh distros variables
