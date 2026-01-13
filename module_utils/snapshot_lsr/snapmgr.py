@@ -188,6 +188,7 @@ def mgr_check_verify_lvs_set(manager, module, snapset_json):
 
 
 def mgr_snapshot_cmd(module, module_args, snapset_json):
+    bootable = None
     snapset_name = snapset_json["name"]
     logger.info("mgr_snapshot_cmd: %s", snapset_name)
     changed = False
@@ -200,10 +201,28 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
-    if "bootable" in snapset_json:
-        bootable = snapset_json["bootable"]
-    else:
-        bootable = False
+
+    # Bootable gloabal varaible is set
+    if module_args["snapshot_lvm_bootable"]:
+        bootable = module_args["snapshot_lvm_bootable"]
+
+    # Global is not set, check the snapset
+    if bootable is None:
+        if "bootable" in snapset_json:
+            bootable = snapset_json["bootable"]
+        else:
+            bootable = False
+    else:  # Global is set, check for conflict
+        if (
+            "bootable" in snapset_json
+            and snapset_json["bootable"] is not None
+            and bootable != snapset_json["bootable"]
+        ):
+            return {
+                "return_code": SnapshotStatus.ERROR_BOOTABLE_CONFLICT,
+                "errors": "Conflicting values for bootable",
+                "changed": False,
+            }
 
     source_list = mgr_get_source_list_for_create(volume_list)
 

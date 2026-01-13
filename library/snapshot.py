@@ -343,10 +343,14 @@ def run_module():
     if module.params["snapshot_lvm_vg_include"]:
         vg_include = re.compile(module.params["snapshot_lvm_vg_include"])
 
-    if len(module.params["snapshot_lvm_set"].get("volumes")) > 0:
+    if (
+        module.params["snapshot_lvm_set"]
+        and "volumes" in module.params["snapshot_lvm_set"]
+        and len(module.params["snapshot_lvm_set"].get("volumes")) > 0
+    ):
         cmd_result, snapset_dict = validate_snapset_json(
             cmd,
-            module.params["snapshot_lvm_set"],
+            module.params,
             False,
         )
     else:
