@@ -1,9 +1,13 @@
 from __future__ import absolute_import, division, print_function
 
+from module_utils.snapshot_lsr.utils import mount
+
 __metaclass__ = type
 
 import logging
+import os
 from os.path import join as path_join
+import stat
 from ansible.module_utils.snapshot_lsr.consts import SnapshotStatus
 from ansible.module_utils.snapshot_lsr.lvm import (
     verify_snapset_source_lvs_exist,
@@ -14,9 +18,12 @@ from ansible.module_utils.snapshot_lsr.lvm import (
 )
 from ansible.module_utils.snapshot_lsr.utils import (
     DEV_PREFIX,
-    mount_snapshot_set,
-    umount_snapshot_set,
+    to_bool,
     lvm_get_vg_lv_from_devpath,
+    mgr_get_snapshot_name,
+    mount_verify,
+    umount_verify,
+    verify_source_lvs_exist,
 )
 
 logger = logging.getLogger("snapshot-role")
@@ -188,6 +195,7 @@ def mgr_check_verify_lvs_set(manager, module, snapset_json):
 
 
 def mgr_snapshot_cmd(module, module_args, snapset_json):
+    bootable = None
     snapset_name = snapset_json["name"]
     logger.info("mgr_snapshot_cmd: %s", snapset_name)
     changed = False
@@ -200,10 +208,28 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
-    if "bootable" in snapset_json:
-        bootable = snapset_json["bootable"]
-    else:
-        bootable = False
+
+    # Bootable gloabal varaible is set
+    if module_args["snapshot_lvm_bootable"]:
+        bootable = module_args["snapshot_lvm_bootable"]
+
+    # Global is not set, check the snapset
+    if bootable is None:
+        if "bootable" in snapset_json:
+            bootable = snapset_json["bootable"]
+        else:
+            bootable = False
+    else:  # Global is set, check for conflict
+        if (
+            "bootable" in snapset_json
+            and snapset_json["bootable"] is not None
+            and bootable != snapset_json["bootable"]
+        ):
+            return {
+                "return_code": SnapshotStatus.ERROR_BOOTABLE_CONFLICT,
+                "errors": "Conflicting values for bootable",
+                "changed": False,
+            }
 
     source_list = mgr_get_source_list_for_create(volume_list)
 
@@ -459,32 +485,28 @@ def mgr_revert_cmd(module_args, snapset_json):
 def mgr_mount_cmd(module, module_args, snapset_json):
     snapset_name = snapset_json["name"]
     logger.info(
-        "mount_cmd: %s %d %d %d %s ",
+        "mount_cmd: %s %d %s ",
         snapset_name,
         module_args["snapshot_lvm_verify_only"],
-        module_args["snapshot_lvm_mountpoint_create"],
-        module_args["ansible_check_mode"],
         snapset_json,
     )
 
     manager = snap_manager.Manager()
-    snapshot_set = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
+    snapsets = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
 
-    if snapshot_set is None or len(snapshot_set) == 0:
+    if snapsets is None or len(snapsets) == 0:
         return {
             "return_code": SnapshotStatus.ERROR_MOUNT_FAILED,
             "errors": "snnapshot not found:" + snapset_name,
             "changed": False,
         }
 
-    rc, message, changed = mount_snapshot_set(
+    rc, message, changed = mgr_mount_snapshot_set(
         module,
+        manager,
+        snapsets[0],
         snapset_json,
         module_args["snapshot_lvm_verify_only"],
-        module_args["snapshot_lvm_mountpoint_create"],
-        module_args["ansible_check_mode"],
-        True,
-        snapshot_set[0].snapshots,
     )
 
     return {"return_code": rc, "errors": message, "changed": changed}
@@ -501,22 +523,134 @@ def mgr_umount_cmd(module, module_args, snapset_json):
     )
 
     manager = snap_manager.Manager()
-    snapshot_set = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
+    snapsets = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
 
-    if snapshot_set is None or len(snapshot_set) == 0:
+    if snapsets is None or len(snapsets) == 0:
         return {
-            "return_code": SnapshotStatus.ERROR_MOUNT_FAILED,
+            "return_code": SnapshotStatus.ERROR_UMOUNT_FAILED,
             "errors": "snnapshot not found:" + snapset_name,
             "changed": False,
         }
 
-    rc, message, changed = umount_snapshot_set(
+    rc, message, changed = mgr_umount_snapshot_set(
         module,
+        manager,
+        snapsets[0],
         snapset_json,
         module_args["snapshot_lvm_verify_only"],
-        module_args["ansible_check_mode"],
-        True,
-        snapshot_set[0].snapshots,
     )
 
     return {"return_code": rc, "errors": message, "changed": changed}
+
+
+def mgr_umount_snapshot_set(
+    module,
+    manager,
+    snapset,
+    snapset_json,
+    verify_only,
+):
+    volume_list = snapset_json["volumes"]
+
+    logger.info("umount_snapshot_set : %s", snapset.name)
+
+    if not verify_only:
+        try:
+            manager.mounts.umount(snapset)
+        except Exception as e:
+            logger.error("Failed to mount snapshot set: %s", str(e))
+            return SnapshotStatus.ERROR_MOUNT_FAILED, str(e), False
+        return SnapshotStatus.SNAPSHOT_OK, "", True
+
+    # TODO: request a umount verify function from snapm
+    changed = False
+    for list_item in volume_list:
+        logger.info("umount_snapshot_set: list_item %s", str(list_item))
+        vg_name = list_item["vg"]
+        lv_name = list_item["lv"]
+        mountpoint = list_item["mountpoint"]
+
+        if list_item.get("all_targets") is not None:
+            all_targets = to_bool(list_item["all_targets"])
+        else:
+            all_targets = False
+
+        if list_item.get("mount_origin") is not None:
+            origin = to_bool(list_item["mount_origin"])
+        else:
+            origin = False
+
+        if origin:
+            lv_to_check = lv_name
+        else:
+            rc, message, lv_to_check = mgr_get_snapshot_name(
+                module, vg_name, lv_name, snapset
+            )
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return rc, message, changed
+
+        rc, message = umount_verify(module, mountpoint, vg_name, lv_to_check)
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message, changed
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
+
+
+def mgr_mount_snapshot_set(
+    module,
+    manager,
+    snapset,
+    snapset_json,
+    verify_only,
+):
+    snapset_name = snapset_json["name"]
+    volume_list = snapset_json["volumes"]
+
+    logger.info("mgr_mount_snapshot_set : %s", snapset_name)
+
+    if not verify_only:
+        manager = snap_manager.Manager()
+        snapsets = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
+        try:
+            manager.mounts.mount(snapsets[0])
+        except Exception as e:
+            logger.error("Failed to mount snapshot set: %s", str(e))
+            return SnapshotStatus.ERROR_MOUNT_FAILED, str(e), False
+        return SnapshotStatus.SNAPSHOT_OK, "", True
+
+    # TODO: request a mount verify function from snapm
+    changed = False
+    for list_item in volume_list:
+        logger.info("umount_snapshot_set: list_item %s", str(list_item))
+        vg_name = list_item["vg"]
+        lv_name = list_item["lv"]
+        mountpoint = list_item["mountpoint"]
+
+        if list_item.get("all_targets") is not None:
+            all_targets = to_bool(list_item["all_targets"])
+        else:
+            all_targets = False
+
+        if list_item.get("mount_origin") is not None:
+            origin = to_bool(list_item["mount_origin"])
+        else:
+            origin = False
+
+        if origin:
+            lv_to_check = lv_name
+        else:
+            rc, message, lv_to_check = mgr_get_snapshot_name(
+                module, vg_name, lv_name, snapset
+            )
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                return rc, message, changed
+
+        rc, message = mount_verify(module, mountpoint, vg_name, lv_to_check)
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message, changed
+
+    return SnapshotStatus.SNAPSHOT_OK, "", changed
+
+    return rc, message, changed
