@@ -1,0 +1,85 @@
+---
+- name: Basic extend snapshot test
+  hosts: all
+  vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+          - name: lv2
+            size: "15%"
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "15%"
+          - name: lv4
+            size: "15%"
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "15%"
+          - name: lv6
+            size: "15%"
+
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot LVs
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_percent_space_required: 50
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+
+        - name: Verify the snapshot LVs are created
+          include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Attempt to remove origin volume (Expected to Fail)
+          block:
+            - name: Run storage role to remove lv_origin
+              include_role:
+                name: fedora.linux_system_roles.storage
+              vars:
+                storage_volumes:
+                  - name: lv_origin
+                    type: lvm
+                    vg: test_vg2
+                    state: absent
+
+            - name: Fail if the role unexpectedly succeeded
+              fail:
+                msg: "The volume was removed, but we expected it to fail!"
+
+          rescue:
+            - name: Confirm the failure reason
+              debug:
+                msg: "Caught expected failure: {{ ansible_failed_result.msg }}"
+
+            - name: Verify LVM error message
+              fail:
+                msg: "Role failed, but for the wrong reason: {{ ansible_failed_result.msg }}"
+              when: "'is a snapshot origin' not in ansible_failed_result.msg"
+
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
