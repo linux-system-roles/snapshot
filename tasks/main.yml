@@ -14,22 +14,14 @@
     use: "{{ (__snapshot_is_ostree | d(false)) |
               ternary('ansible.posix.rhel_rpm_ostree', omit) }}"
 
-- name: Get snapm version
-  check_mode: false
-  command: snapm --version
-  changed_when: false
-  register: __snapshot_snapm_version_output
-  # Ignore errors as snapm may not be available
-  ignore_errors: true
+- name: Get package facts
+  package_facts:
+  no_log: "{{ ansible_verbosity < 2 }}"
 
-- name: Set snapm availability fact
+- name: Set snapm availability fact and version
   set_fact:
-    __snapshot_snapm_available: "{{ __snapshot_snapm_version_output is success }}"
-
-- name: Set snapm version
-  set_fact:
-    __snapshot_snapm_version: "{{ __snapshot_snapm_version_output.stdout }}"
-  when: __snapshot_snapm_available
+    __snapshot_snapm_available: "{{ 'snapm' in ansible_facts.packages }}"
+    __snapshot_snapm_version: "{{ ansible_facts.packages.get('snapm', [{}])[0].get('version', '0.0') }}"
 
 # Determine if bootable support is needed
 # If snapshot_lvm_bootable is set to true, or any of the volumes in snapshot_lvm_set

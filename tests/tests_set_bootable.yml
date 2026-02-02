@@ -99,12 +99,12 @@
           assert:
             that: not snapshot_cmd["changed"]
       rescue:
-        - name: Check if error is due to snapm version too old
-          fail:
-            msg: Unexpected error occurred {{ ansible_failed_result | to_nice_json }}
-          when: not ansible_failed_result.msg is search(err_msg)
+        - name: Do not fail if snapm is too old for test
+          assert:
+            that: ansible_failed_result.msg is search(msg1) or ansible_failed_result.msg is search(msg2)
           vars:
-            err_msg: Package snapm .*version 0.5 or later is required to use bootable snapsets
+            msg1: "Package snapm version .* is too old"
+            msg2: "Package snapm version 0.5 or later is required to use bootable snapsets"
       always:
         - name: Cleanup
           include_tasks: tasks/cleanup.yml
