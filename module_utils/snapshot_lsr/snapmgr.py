@@ -32,6 +32,9 @@ except ImportError:  # Snapshot Manager is not available.
 
 SNAPM_DEFAULT_SIZE_POLICY = "20%SIZE"
 SNAPM_MIN_VERSION = "0.4.0"
+# Minimum version of snapm that supports the boot parameter
+# in the create_snapshot_set function.
+SNAPM_BOOT_PARAM_MIN_VERSION = "0.4.3"
 
 
 # NOTE: Because of PEP632, we cannot use distutils.
@@ -55,6 +58,16 @@ def use_snapshot_manager():
     if not snapshot_manager_imported or lsr_parse_version(
         snapm.__version__
     ) < lsr_parse_version(SNAPM_MIN_VERSION):
+        return False
+
+    return True
+
+
+def has_boot_parameter():
+
+    if not snapshot_manager_imported or lsr_parse_version(
+        snapm.__version__
+    ) < lsr_parse_version(SNAPM_BOOT_PARAM_MIN_VERSION):
         return False
 
     return True
@@ -232,12 +245,19 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     manager = snap_manager.Manager()
 
     try:
-        manager.create_snapshot_set(
-            snapset_name,
-            source_list,
-            SNAPM_DEFAULT_SIZE_POLICY,
-            boot=bootable,
-        )
+        if has_boot_parameter():
+            manager.create_snapshot_set(
+                snapset_name,
+                source_list,
+                SNAPM_DEFAULT_SIZE_POLICY,
+                boot=bootable,
+            )
+        else:
+            manager.create_snapshot_set(
+                snapset_name,
+                source_list,
+                SNAPM_DEFAULT_SIZE_POLICY,
+            )
         changed = True
     except snapm.SnapmError as snap_err:
         # if the set already exists, return ok

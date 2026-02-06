@@ -8,14 +8,15 @@ __snapshot_base_packages: "{{ __snapshot_base_packages_7_8
   else __snapshot_base_packages_other }}"
 __snapshot_extra_packages: ["boom-boot", "snapm"]
 __snapshot_packages: "{{ __snapshot_base_packages + __snapshot_extra_packages
-  if ((__snapshot_is_rh_distro and
+  if ((ansible_facts['distribution'] == 'RedHat' and
        ansible_facts['distribution_version'] is version('9.6', '>=')) or
+      (__snapshot_is_rh_distro and
+       ansible_facts['distribution'] != 'RedHat' and
+       ansible_facts['distribution_major_version'] is version('9', '>=')) or
       (ansible_facts['distribution'] == 'Fedora' and
        ansible_facts['distribution_version'] is version('41', '>=')))
   else __snapshot_base_packages }}"
 __snapshot_services: []
-# python to use on managed nodes for snapshot.py
-__snapshot_python: /usr/bin/python3
 # ansible_facts required by the role
 __snapshot_required_facts:
   - distribution
