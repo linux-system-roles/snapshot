@@ -1,6 +1,20 @@
 Changelog
 =========
 
+[1.6.4] - 2026-02-06
+--------------------
+
+### Bug Fixes
+
+- fix: problem with bootable flag not getting passed properly to snapm (#138)
+- fix: check create_snapshot_set function for boot parameter (#148)
+
+### Other Changes
+
+- ci: bump ansible/ansible-lint from 25 to 26 (#145)
+- ci: skip most CI checks if title contains citest skip [citest_skip] (#146)
+- ci: ansible-lint - remove .collection directory from converted collection [citest_skip] (#147)
+
 [1.6.3] - 2026-01-13
 --------------------
 
