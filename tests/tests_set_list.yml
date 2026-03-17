@@ -1,0 +1,94 @@
+---
+- name: List and Remove Set of Snapshots
+  hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+          - name: lv2
+            size: "50%"
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "10%"
+          - name: lv4
+            size: "20%"
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "30%"
+          - name: lv6
+            size: "25%"
+          - name: lv7
+            size: "10%"
+          - name: lv8
+            size: "10%"
+    snapshot_test_set:
+      name: snapset1
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot set of LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: List the snapshot set
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: list
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Count snapshots in list results
+          set_fact:
+            snapshot_count: "{{ snapshot_facts.volumes.values() | flatten | selectattr('is_snapshot') | list | length }}"
+
+        - name: Assert snapshot count matches number of volumes in the set
+          assert:
+            that: (snapshot_count | int) == (snapshot_test_set.volumes | length)
+            fail_msg: "Expected {{ snapshot_test_set.volumes | length }} snapshots but found {{ snapshot_count }}"
+
+        - name: Run remove for the set
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Verify the snapshot set is removed
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+            snapshot_lvm_verify_only: true
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
