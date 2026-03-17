@@ -243,8 +243,10 @@ def lvm_list_json(module, vg_name, lv_name, vg_include):
     for lv_list in vg_dict.values():
         for lv_item in lv_list:
             block_path = lv_item["lv_path"]
+            # lv_attr[0] == "s" indicates this LV is a snapshot
+            lv_item["is_snapshot"] = lv_item["lv_attr"][0] == "s"
             fs_mount_points = get_fs_mount_points(module, block_path)
-            fs_dict[block_path] = fs_mount_points
+            fs_dict[block_path] = fs_mount_points or ""
 
     top_level["volumes"] = vg_dict
     top_level["mounts"] = fs_dict
