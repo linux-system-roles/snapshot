@@ -243,8 +243,17 @@ def lvm_list_json(module, vg_name, lv_name, vg_include):
     for lv_list in vg_dict.values():
         for lv_item in lv_list:
             block_path = lv_item["lv_path"]
+            rc, is_snapshot = lvm_is_snapshot(
+                module, lv_item["vg_name"], lv_item["lv_name"]
+            )
+            if rc != SnapshotStatus.SNAPSHOT_OK:
+                raise LvmBug(
+                    "lvm_list_json: command failed for LV lvm_is_snapshot() for %s"
+                    % block_path,
+                )
+            lv_item["is_snapshot"] = is_snapshot
             fs_mount_points = get_fs_mount_points(module, block_path)
-            fs_dict[block_path] = fs_mount_points
+            fs_dict[block_path] = fs_mount_points or ""
 
     top_level["volumes"] = vg_dict
     top_level["mounts"] = fs_dict

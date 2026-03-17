@@ -31,6 +31,8 @@ This variable is required. It supports one of the following values:
 
 - `check`: Validate that snapshot names don't have conflicts and there is sufficient space to take the snapshots
 
+- `list`:   List the status of the specified VGs/LVs
+
 - `remove`: Remove snapshots that conform to the specified prefix and pattern
 
 - `revert`: Revert to snapshots that are specified by either the pattern or set.
