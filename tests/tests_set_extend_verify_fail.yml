@@ -31,15 +31,13 @@
           include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot set of LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_action: snapshot
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
         - name: Run the snapshot role to verify the set of snapshots for the LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_action: check
             snapshot_lvm_set: "{{ snapshot_test_set }}"

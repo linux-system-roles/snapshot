@@ -47,8 +47,7 @@
           include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_all_vgs: true
@@ -56,8 +55,7 @@
             snapshot_lvm_action: snapshot
 
         - name: Verify the snapshot LVs are created
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
@@ -65,8 +63,7 @@
             snapshot_lvm_action: check
 
         - name: Mount the snapshot for lv1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -80,8 +77,7 @@
             that: snapshot_cmd["changed"]
 
         - name: Mount the snapshot for lv1 again for idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -95,8 +91,7 @@
             that: not snapshot_cmd["changed"]
 
         - name: Mount the snapshot for lv2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -106,8 +101,7 @@
             snapshot_lvm_mountpoint_create: true
 
         - name: Mount the snapshot for lv7
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -117,8 +111,7 @@
             snapshot_lvm_mountpoint_create: true
 
         - name: Mount the origin for lv6
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -129,8 +122,7 @@
             snapshot_lvm_mount_origin: true
 
         - name: Verify snapshot is mounted for lv1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -140,8 +132,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify snapshot is mounted for lv2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -151,8 +142,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify snapshot is mounted for lv7
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -162,8 +152,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify origin is mounted lv6
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: mount
@@ -175,8 +164,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Umount the snapshot for lv1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -189,8 +177,7 @@
             that: snapshot_cmd["changed"]
 
         - name: Umount the snapshot for lv1 again for idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -203,8 +190,7 @@
             that: not snapshot_cmd["changed"]
 
         - name: Umount the snapshot for lv2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -213,8 +199,7 @@
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
 
         - name: Umount the snapshot for lv7
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -223,8 +208,7 @@
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv7_mp' }}"
 
         - name: Umount the origin for lv6
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -233,8 +217,7 @@
             snapshot_lvm_mountpoint: "{{ test_mnt_parent ~ '/lv6_mp' }}"
 
         - name: Verify umount of the for lv1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -244,8 +227,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the for lv2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -255,8 +237,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the for lv7
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -266,8 +247,7 @@
             snapshot_lvm_verify_only: true
 
         - name: Verify umount of the origin for lv6
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: umount
@@ -277,15 +257,13 @@
             snapshot_lvm_verify_only: true
 
         - name: Run the snapshot role remove the snapshot LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: remove
 
         - name: Use the snapshot_lvm_verify option to make sure remove is done
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true

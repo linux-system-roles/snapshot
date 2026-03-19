@@ -61,8 +61,7 @@
           include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot set of LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_action: snapshot
             snapshot_lvm_bootable: true
@@ -82,15 +81,13 @@
             that: is_bootable
 
         - name: Remove the snapshot set
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_action: remove
             snapshot_lvm_set: "{{ snapshot_test_set }}"
 
         - name: Remove again to check idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_action: remove
             snapshot_lvm_set: "{{ snapshot_test_set }}"

@@ -2,7 +2,6 @@
 ---
 - name: Ensure that the role runs with default parameters
   hosts: all
-  gather_facts: false  # test that role works in this case
   vars:
     # only use vgs matching this pattern
     snapshot_lvm_vg_include: "^test_"
@@ -10,5 +9,6 @@
     snapshot_lvm_percent_space_required: 2
     snapshot_lvm_snapset_name: snapset1
     snapshot_lvm_all_vgs: true
-  roles:
-    - linux-system-roles.snapshot
+  tasks:
+    - name: Run the role
+      include_tasks: tasks/run_role_with_clear_facts.yml
