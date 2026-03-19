@@ -36,8 +36,7 @@
           include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 50
             snapshot_lvm_all_vgs: true
@@ -45,8 +44,7 @@
             snapshot_lvm_action: snapshot
 
         - name: Verify the snapshot LVs are created
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_all_vgs: true
             snapshot_lvm_snapset_name: snapset1
@@ -54,8 +52,7 @@
             snapshot_lvm_action: check
 
         - name: Extend the snapshots size to 60 percent of the source
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
@@ -67,8 +64,7 @@
             that: snapshot_cmd["changed"]
 
         - name: Use the snapshot_lvm_verify option to make sure extend is done
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
@@ -85,8 +81,7 @@
             that: not snapshot_cmd["changed"]
 
         - name: Extend again to check idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true
@@ -98,8 +93,7 @@
             that: not snapshot_cmd["changed"]
 
         - name: Verify extend again to check idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 60
             snapshot_lvm_all_vgs: true

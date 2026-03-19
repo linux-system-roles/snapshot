@@ -37,8 +37,7 @@
           include_tasks: tasks/setup.yml
 
         - name: Run the snapshot role to create snapshot LVs for snapset1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_vg: test_vg1
@@ -50,8 +49,7 @@
             that: snapshot_cmd["changed"]
 
         - name: Verify the snapshot LVs are created for snapset1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_snapset_name: snapset1
@@ -59,8 +57,7 @@
             snapshot_lvm_action: check
 
         - name: Create snapshot LVs for snapset1 to check idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_vg: test_vg1
@@ -72,8 +69,7 @@
             that: not snapshot_cmd["changed"]
 
         - name: Run the snapshot role to create snapshot LVs for snapset2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_vg: test_vg2
@@ -81,8 +77,7 @@
             snapshot_lvm_action: snapshot
 
         - name: Verify the snapshot LVs are created for snapset2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_vg: test_vg2
             snapshot_lvm_snapset_name: snapset2
@@ -90,8 +85,7 @@
             snapshot_lvm_action: check
 
         - name: Run the snapshot role remove the snapshot LVs for snapset1
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: remove
@@ -101,16 +95,14 @@
             that: snapshot_cmd["changed"]
 
         - name: Use the snapshot_lvm_verify option to make sure remove is done
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
             snapshot_lvm_action: remove
 
         - name: Remove snapshot LVs for snapset1 again for idempotence
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_action: remove
@@ -120,15 +112,13 @@
             that: not snapshot_cmd["changed"]
 
         - name: Run the snapshot role remove the snapshot LVs for snapset2
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset2
             snapshot_lvm_action: remove
 
         - name: Use the snapshot_lvm_verify option to make sure remove is done
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset2
             snapshot_lvm_verify_only: true

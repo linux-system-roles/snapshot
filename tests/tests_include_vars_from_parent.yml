@@ -1,7 +1,6 @@
 ---
 - name: Test role include variable override
   hosts: all
-  gather_facts: true
   vars:
     # only use vgs matching this pattern
     snapshot_lvm_vg_include: "^test_"

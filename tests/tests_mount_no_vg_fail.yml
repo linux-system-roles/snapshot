@@ -20,8 +20,7 @@
           include_tasks: tasks/setup.yml
 
         - name: Create snapshot for LV
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_percent_space_required: 15
             snapshot_lvm_all_vgs: true
@@ -43,16 +42,14 @@
             __snapshot_failed_changed: false
 
         - name: Remove the snapshot LVs
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_all_vgs: true
             snapshot_lvm_action: remove
 
         - name: Use the snapshot_lvm_verify option to make sure remove is done
-          include_role:
-            name: linux-system-roles.snapshot
+          include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
             snapshot_lvm_verify_only: true
