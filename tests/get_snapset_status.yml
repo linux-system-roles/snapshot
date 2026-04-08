@@ -1,4 +1,5 @@
 # get_snapset_status.yml
+---
 - name: Invoke snapm for {{ snapset_name }}
   ansible.builtin.command: snapm snapset show {{ snapset_name | quote }} -j
   register: snapm_raw
