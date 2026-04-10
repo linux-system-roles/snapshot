@@ -31,6 +31,8 @@ This variable is required. It supports one of the following values:
 
 - `check`: Validate that snapshot names don't have conflicts and there is sufficient space to take the snapshots
 
+- `list`:   List the status of the specified VGs/LVs
+
 - `remove`: Remove snapshots that conform to the specified prefix and pattern
 
 - `revert`: Revert to snapshots that are specified by either the pattern or set.
@@ -40,7 +42,9 @@ This variable is required. It supports one of the following values:
 
 - `extend`: Extend snapshot to have at least snapshot_lvm_percent_space_required
             space allocated to the snapshot.  Allocations are rounded up to the
-            next multiple of the volume group extent size.
+            next multiple of the volume group extent size. To extend a subset of
+            a snapset, update percent_space_required to the updated value for
+            the desired subset of volumes.
 
 - `mount`:  Mount a filesystem on a mount point
 
