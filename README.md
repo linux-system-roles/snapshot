@@ -42,7 +42,9 @@ This variable is required. It supports one of the following values:
 
 - `extend`: Extend snapshot to have at least snapshot_lvm_percent_space_required
             space allocated to the snapshot.  Allocations are rounded up to the
-            next multiple of the volume group extent size.
+            next multiple of the volume group extent size. To extend a subset of
+            a snapset, update percent_space_required to the updated value for
+            the desired subset of volumes.
 
 - `mount`:  Mount a filesystem on a mount point
 
