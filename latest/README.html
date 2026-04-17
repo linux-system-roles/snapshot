@@ -212,6 +212,8 @@ values:</p>
 VGs/LVs</p></li>
 <li><p><code>check</code>: Validate that snapshot names don't have
 conflicts and there is sufficient space to take the snapshots</p></li>
+<li><p><code>list</code>: List the status of the specified
+VGs/LVs</p></li>
 <li><p><code>remove</code>: Remove snapshots that conform to the
 specified prefix and pattern</p></li>
 <li><p><code>revert</code>: Revert to snapshots that are specified by
@@ -221,7 +223,9 @@ source logical volume is activated.</p></li>
 <li><p><code>extend</code>: Extend snapshot to have at least
 snapshot_lvm_percent_space_required space allocated to the snapshot.
 Allocations are rounded up to the next multiple of the volume group
-extent size.</p></li>
+extent size. To extend a subset of a snapset, update
+percent_space_required to the updated value for the desired subset of
+volumes.</p></li>
 <li><p><code>mount</code>: Mount a filesystem on a mount point</p></li>
 <li><p><code>umount</code>: Unmount a filesystem</p></li>
 </ul>
