@@ -117,7 +117,8 @@ def no_holders(disk_path):
 def can_open(disk_path):
     """Return true if the device can be opened with exclusive access."""
     try:
-        os.open(disk_path, os.O_EXCL)
+        fd = os.open(disk_path, os.O_EXCL)
+        os.close(fd)
         return True
     except OSError:
         return False
