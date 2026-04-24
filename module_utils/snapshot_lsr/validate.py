@@ -79,7 +79,7 @@ def get_json_from_args(module, module_args, vg_include):
                 )
                 continue
             volume = {}
-            volume["name"] = ("snapshot : " + vg_str + "/" + lv["lv_name"],)
+            volume["name"] = "snapshot : " + vg_str + "/" + lv["lv_name"]
             volume["vg"] = vg_str
             volume["lv"] = lv["lv_name"]
 
