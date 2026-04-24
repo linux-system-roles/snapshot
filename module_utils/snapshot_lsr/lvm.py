@@ -96,7 +96,9 @@ def get_json_from_args(module, module_args, vg_include):
         vg_str = vg["vg_name"]
         for lv in lv_list:
 
-            if lv["lv_name"].endswith(module_args["snapshot_lvm_snapset_name"]):
+            if module_args["snapshot_lvm_snapset_name"] and lv["lv_name"].endswith(
+                module_args["snapshot_lvm_snapset_name"]
+            ):
                 logger.info(
                     "get_json_from_args: already a snapshot for %s", lv["lv_name"]
                 )
