@@ -206,6 +206,7 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     logger.info("mgr_snapshot_cmd: %s", snapset_name)
     changed = False
     message = ""
+    rc = SnapshotStatus.SNAPSHOT_OK
     check_mode = module_args["ansible_check_mode"]
 
     rc, message = verify_snapset_source_lvs_exist(module, snapset_json)
@@ -240,7 +241,11 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     source_list = mgr_get_source_list_for_create(volume_list)
 
     if check_mode:
-        return {rc, "Would call function manager.create_snapshot_set()", False}
+        return {
+            "return_code": rc,
+            "errors": "Would call function manager.create_snapshot_set()",
+            "changed": False,
+        }
 
     manager = snap_manager.Manager()
 
@@ -437,9 +442,10 @@ def mgr_extend_cmd(module, module_args, snapset_json):
 
     if check_mode:
         return {
-            rc,
-            "Would run function "
-            + " manager.resize_snapshot_set() with ".join(source_list),
+            "return_code": rc,
+            "errors": "Would run function manager.resize_snapshot_set() with "
+            + ", ".join(source_list),
+            "changed": False,
         }
 
     # there are no LVs that require an extend operation, return OK.
@@ -472,9 +478,10 @@ def mgr_revert_cmd(module_args, snapset_json):
 
     if check_mode:
         return {
-            rc,
-            "Would run function "
-            + " manager.revert_snapshot_set with ".join(snapset_name),
+            "return_code": rc,
+            "errors": "Would run function manager.revert_snapshot_set with "
+            + snapset_name,
+            "changed": False,
         }
 
     manager = snap_manager.Manager()
