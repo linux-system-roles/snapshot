@@ -1,6 +1,28 @@
 Changelog
 =========
 
+[1.7.0] - 2026-04-28
+--------------------
+
+### New Features
+
+- feat: add list command to report the status of LVM snapshots for specified VGs/LVs (#164)
+- feat: add role fingerprints to syslog (#165)
+
+### Other Changes
+
+- ci: tox-lsr version 3.15.0 [citest_skip] (#150)
+- ci: Add Fedora 43, remove Fedora 41 from Testing Farm CI (#151)
+- ci: bump actions/upload-artifact from 6 to 7 (#153)
+- ci: tox-lsr 3.17.0 - container test improvements, use ansible 2.20 for fedora 43 [citest_skip] (#155)
+- ci: tox-lsr 3.17.1 - previous update broke container tests, this fixes them [citest_skip] (#156)
+- ci: fix yum repos to use devel site instead of old site name [citest_skip] (#158)
+- ci: use codecov @v6 [citest_skip] (#159)
+- ci: update header for run_role_with_clear_facts [citest_skip] (#160)
+- test: support ansible-test milestone version 2.22 [citest_skip] (#161)
+- ci: Comply with Ansible partner certification checking [citest_skip] (#162)
+- ci: ansible-lint requires dependencies to be installed [citest_skip] (#163)
+
 [1.6.4] - 2026-02-06
 --------------------
 
