@@ -13,6 +13,8 @@ provision:
     role: managed_node
   - name: managed-node4
     role: managed_node
+  - name: managed-node5
+    role: managed_node
 environment:
   # ensure versions are strings!
   SR_ANSIBLE_VER: "2.17"
