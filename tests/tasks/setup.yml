@@ -6,6 +6,7 @@
 # Output:
 # - unused_disks e.g. ["sda", "sdb", ..]
 # - test_mnt_parent e.g. /mnt or /var/mnt
+# - snapshot_fstab_nfs_lines — original uncommented NFS fstab lines (commented in fstab)
 ---
 - name: Check if system is ostree
   stat:
@@ -35,3 +36,37 @@
   vars:
     storage_pools: "{{ test_storage_pools }}"
     storage_udevadm_trigger: true  # helps with get_unused_disks, cleanup
+
+- name: Reset snapshot_fstab_nfs_lines
+  set_fact:
+    snapshot_fstab_nfs_lines: []
+
+# https://github.com/snapshotmanager/snapm/issues/955
+- name: List uncommented NFS lines in /etc/fstab
+  command: >-
+    awk '!/^[[:space:]]*#/ && /[[:space:]](nfs|nfs4)[[:space:]]/' /etc/fstab
+  register: __nfs_fstab_check
+  changed_when: false
+  failed_when: __nfs_fstab_check.rc not in [0, 1, 2]
+
+- name: Comment out NFS fstab lines and save originals for cleanup
+  when: __nfs_fstab_check.stdout_lines | length > 0
+  block:
+    - name: Record original NFS fstab lines for cleanup
+      set_fact:
+        snapshot_fstab_nfs_lines: "{{ __nfs_fstab_check.stdout_lines }}"
+
+    - name: Compute fstab with NFS lines commented out
+      command: >-
+        awk '!/^[[:space:]]*#/ && /[[:space:]](nfs|nfs4)[[:space:]]/
+        { print "#" $0; next } { print }' /etc/fstab
+      register: __fstab_commented
+      changed_when: false
+
+    - name: Write /etc/fstab with NFS lines commented out
+      copy:
+        dest: /etc/fstab
+        content: "{{ __fstab_commented.stdout }}{% if __fstab_commented.stdout != '' %}\n{% endif %}"
+        owner: root
+        group: root
+        mode: "0644"

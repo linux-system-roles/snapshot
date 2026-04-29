@@ -3,6 +3,7 @@
 # - test_disk_min_size e.g. "1g"
 # - test_disk_count e.g. 10
 # - test_storage_pools - the list of pools & volumes to create
+# - snapshot_fstab_nfs_lines (optional, originals of NFS lines commented in setup)
 ---
 - name: Remove storage volumes
   include_role:
@@ -67,3 +68,11 @@
   changed_when: false
   when: unused_disks_before != unused_disks_return.disks
   failed_when: unused_disks_before != unused_disks_return.disks
+
+- name: Uncomment NFS fstab lines commented during setup
+  replace:
+    path: /etc/fstab
+    regexp: '^#{{ item | regex_escape }}$'
+    replace: '{{ item }}'
+  loop: "{{ snapshot_fstab_nfs_lines }}"
+  when: snapshot_fstab_nfs_lines | default([]) | length > 0
