@@ -206,7 +206,6 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     logger.info("mgr_snapshot_cmd: %s", snapset_name)
     changed = False
     message = ""
-    rc = SnapshotStatus.SNAPSHOT_OK
     check_mode = module_args["ansible_check_mode"]
 
     rc, message = verify_snapset_source_lvs_exist(module, snapset_json)
@@ -242,7 +241,7 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
 
     if check_mode:
         return {
-            "return_code": rc,
+            "return_code": SnapshotStatus.SNAPSHOT_OK,
             "errors": "Would call function manager.create_snapshot_set()",
             "changed": False,
         }
