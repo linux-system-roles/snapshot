@@ -1,6 +1,19 @@
 Changelog
 =========
 
+[1.7.1] - 2026-05-07
+--------------------
+
+### Bug Fixes
+
+- fix: issues found via code review (#170)
+
+### Other Changes
+
+- ci: testing farm tests now use 5 managed nodes [citest_skip] (#167)
+- test: comment out NFS mounts from /etc/fstab for bootable test failures (#168)
+- ci: bump actions/github-script from 8 to 9 (#169)
+
 [1.7.0] - 2026-04-28
 --------------------
 
