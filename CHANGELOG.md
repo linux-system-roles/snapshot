@@ -1,6 +1,17 @@
 Changelog
 =========
 
+[1.7.3] - 2026-06-24
+--------------------
+
+### Other Changes
+
+- refactor: use ansible.posix 2.1.X for EL7 compatibility [citest_skip] (#174)
+- ci: Add config file for CodeRabbit with custom rules (#175)
+- ci: Skip reviews for PRs with [citest_skip] in the title (#176)
+- chore: add RedHat 9.8, 9.9 ostree files; ensure ostree files end in newline [citest_skip] (#177)
+- test: remove unused files (#178)
+
 [1.7.2] - 2026-05-12
 --------------------
 
