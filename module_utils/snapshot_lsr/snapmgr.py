@@ -229,9 +229,8 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     snapset_name = snapset_json["name"]
     volume_list = snapset_json["volumes"]
 
-    # Bootable global variable is set
-    if module_args["snapshot_lvm_bootable"]:
-        bootable = module_args["snapshot_lvm_bootable"]
+    # Bootable global variable
+    bootable = module_args.get("snapshot_lvm_bootable")
 
     # Global is not set, check the snapset
     if bootable is None:
@@ -251,9 +250,8 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
                 "changed": False,
             }
 
-    # Revertable global variable is set
-    if module_args["snapshot_lvm_revertable"]:
-        revertable = module_args["snapshot_lvm_revertable"]
+    # Revertable global variable
+    revertable = module_args.get("snapshot_lvm_revertable")
 
     # Global is not set, check the snapset
     if revertable is None:

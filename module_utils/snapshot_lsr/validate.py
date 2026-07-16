@@ -33,10 +33,10 @@ def get_json_from_args(module, module_args, vg_include):
     if module_args["snapshot_lvm_snapset_name"]:
         args_dict["name"] = module_args["snapshot_lvm_snapset_name"]
 
-    if module_args["snapshot_lvm_bootable"]:
+    if module_args.get("snapshot_lvm_bootable") is not None:
         args_dict["bootable"] = module_args["snapshot_lvm_bootable"]
 
-    if module_args["snapshot_lvm_revertable"]:
+    if module_args.get("snapshot_lvm_revertable") is not None:
         args_dict["revertable"] = module_args["snapshot_lvm_revertable"]
 
     for vg, lv_list in vgs_lvs_iterator(
@@ -341,10 +341,10 @@ def validate_snapset_json(cmd, module_args, verify_only):
 
     snapset_dict = module_args["snapshot_lvm_set"]
 
-    if module_args["snapshot_lvm_bootable"]:
+    if module_args.get("snapshot_lvm_bootable") is not None:
         snapset_dict["snapshot_lvm_bootable"] = module_args["snapshot_lvm_bootable"]
 
-    if module_args["snapshot_lvm_revertable"]:
+    if module_args.get("snapshot_lvm_revertable") is not None:
         snapset_dict["snapshot_lvm_revertable"] = module_args["snapshot_lvm_revertable"]
 
     if cmd == SnapshotCommand.SNAPSHOT:
