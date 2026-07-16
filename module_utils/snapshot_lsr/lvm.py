@@ -1235,6 +1235,20 @@ def snapshot_set(module, snapset_json, check_mode):
             changed,
         )
 
+    # If this function has been called with revertable snapshot requested, return error
+    # because snapm is required for revertable snapshots.
+    if any(
+        (
+            snapset_json.get("snapshot_lvm_revertable", False),
+            snapset_json.get("revertable", False),
+        )
+    ):
+        return (
+            SnapshotStatus.ERROR_REVERTABLE_NOT_SUPPORTED,
+            "Revertable snapshots are not supported without snapm",
+            changed,
+        )
+
     rc, message = verify_snapset_source_lvs_exist(module, snapset_json)
     if rc != SnapshotStatus.SNAPSHOT_OK:
         return rc, message, changed

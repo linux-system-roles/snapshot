@@ -35,6 +35,9 @@ SNAPM_MIN_VERSION = "0.4.0"
 # Minimum version of snapm that supports the boot parameter
 # in the create_snapshot_set function.
 SNAPM_BOOT_PARAM_MIN_VERSION = "0.4.3"
+# Minimum version of snapm that supports the revert parameter
+# in the create_snapshot_set function.
+SNAPM_REVERT_PARAM_MIN_VERSION = "0.5.0"
 
 
 # NOTE: Because of PEP632, we cannot use distutils.
@@ -68,6 +71,16 @@ def has_boot_parameter():
     if not snapshot_manager_imported or lsr_parse_version(
         snapm.__version__
     ) < lsr_parse_version(SNAPM_BOOT_PARAM_MIN_VERSION):
+        return False
+
+    return True
+
+
+def has_revert_parameter():
+
+    if not snapshot_manager_imported or lsr_parse_version(
+        snapm.__version__
+    ) < lsr_parse_version(SNAPM_REVERT_PARAM_MIN_VERSION):
         return False
 
     return True
@@ -202,6 +215,7 @@ def mgr_check_verify_lvs_set(manager, module, snapset_json):
 
 def mgr_snapshot_cmd(module, module_args, snapset_json):
     bootable = None
+    revertable = None
     snapset_name = snapset_json["name"]
     logger.info("mgr_snapshot_cmd: %s", snapset_name)
     changed = False
@@ -237,7 +251,47 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
                 "changed": False,
             }
 
+    # Revertable global variable is set
+    if module_args["snapshot_lvm_revertable"]:
+        revertable = module_args["snapshot_lvm_revertable"]
+
+    # Global is not set, check the snapset
+    if revertable is None:
+        if "revertable" in snapset_json:
+            revertable = snapset_json["revertable"]
+        else:
+            revertable = False
+    else:  # Global is set, check for conflict
+        if (
+            "revertable" in snapset_json
+            and snapset_json["revertable"] is not None
+            and revertable != snapset_json["revertable"]
+        ):
+            return {
+                "return_code": SnapshotStatus.ERROR_REVERTABLE_CONFLICT,
+                "errors": "Conflicting values for revertable",
+                "changed": False,
+            }
+
     source_list = mgr_get_source_list_for_create(volume_list)
+
+    # Check if bootable is requested but not supported by snapm version
+    if bootable and not has_boot_parameter():
+        return {
+            "return_code": SnapshotStatus.ERROR_BOOTABLE_NOT_SUPPORTED,
+            "errors": "Bootable snapshots require snapm version %s or later"
+            % SNAPM_BOOT_PARAM_MIN_VERSION,
+            "changed": False,
+        }
+
+    # Check if revertable is requested but not supported by snapm version
+    if revertable and not has_revert_parameter():
+        return {
+            "return_code": SnapshotStatus.ERROR_REVERTABLE_NOT_SUPPORTED,
+            "errors": "Revertable snapshots require snapm version %s or later"
+            % SNAPM_REVERT_PARAM_MIN_VERSION,
+            "changed": False,
+        }
 
     if check_mode:
         return {
@@ -249,19 +303,24 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     manager = snap_manager.Manager()
 
     try:
+        # Build kwargs for create_snapshot_set based on available parameters
+        kwargs = {}
         if has_boot_parameter():
-            manager.create_snapshot_set(
-                snapset_name,
-                source_list,
-                SNAPM_DEFAULT_SIZE_POLICY,
-                boot=bootable,
-            )
-        else:
-            manager.create_snapshot_set(
-                snapset_name,
-                source_list,
-                SNAPM_DEFAULT_SIZE_POLICY,
-            )
+            kwargs["boot"] = bootable
+        if has_revert_parameter():
+            kwargs["revert"] = revertable
+
+        logger.info(
+            "DEBUG: Calling create_snapshot_set with snapset_name=%s, "
+            "source_list=%s, default_size_policy=%s, kwargs=%s",
+            snapset_name,
+            source_list,
+            SNAPM_DEFAULT_SIZE_POLICY,
+            kwargs,
+        )
+        manager.create_snapshot_set(
+            snapset_name, source_list, SNAPM_DEFAULT_SIZE_POLICY, **kwargs
+        )
         changed = True
     except snapm.SnapmError as snap_err:
         # if the set already exists, return ok
