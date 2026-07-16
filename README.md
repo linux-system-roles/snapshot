@@ -35,8 +35,11 @@ This variable is required. It supports one of the following values:
 
 - `remove`: Remove snapshots that conform to the specified prefix and pattern
 
-- `revert`: Revert to snapshots that are specified by either the pattern or set.
-            If either the source LV or snapshot are open, the merge is deferred
+- `revert`: Initiate a revert to merge snapshots back into their origin volumes.
+            For snapshots created with `revertable: true`, this command initiates
+            the revert operation, and you must then reboot into the revert boot
+            entry to complete the operation. For regular (non-revertable) snapshots,
+            if either the source LV or snapshot are open, the merge is deferred
             until the next time the server reboots and the source logical volume
             is activated.
 
@@ -140,9 +143,58 @@ defined with the "revertable" field:
 ```
 
 When `revertable: true` is set, a revert boot entry will be created in the boot menu.
-Booting into this entry will automatically merge the snapshots back into their origin volumes,
-providing a boot-time rollback mechanism. Both bootable and revertable can be set independently
-or together.
+To perform a revert operation:
+
+1. First run `snapshot_lvm_action: revert` to initiate the revert
+2. Then reboot into the revert boot entry to complete the revert operation
+
+The revert boot entry alone does NOT initiate a revert - it must be preceded by running
+the revert action. Booting into the revert entry after running the revert action will
+start the merge operation on all affected volumes. The snapshot set will show a status
+of "Reverting" while in progress, and will be destroyed once the revert completes.
+
+Both bootable and revertable can be set independently or together.
+
+**Important**: Simply booting into the revert entry without first running the revert
+action will NOT perform a revert. The two-step process (revert action + revert boot) is
+required for disaster recovery.
+
+#### Complete Revertable Snapshot Workflow Example
+
+```yaml
+# 1. Create revertable snapshots before a risky operation (e.g., system upgrade)
+- name: Create revertable snapshot set
+  include_role:
+    name: linux-system-roles.snapshot
+  vars:
+    snapshot_lvm_action: snapshot
+    snapshot_lvm_set:
+      name: before-upgrade
+      revertable: true
+      volumes:
+        - vg: system_vg
+          lv: root
+          percent_space_required: 20
+        - vg: system_vg
+          lv: var
+          percent_space_required: 20
+
+# 2. Perform your risky operation (upgrade, configuration change, etc.)
+# ...
+
+# 3. If something goes wrong and you need to revert:
+- name: Initiate revert operation
+  include_role:
+    name: linux-system-roles.snapshot
+  vars:
+    snapshot_lvm_action: revert
+    snapshot_lvm_set:
+      name: before-upgrade
+
+# 4. After running the revert action, reboot the system and select the
+#    "Revert before-upgrade" entry from the boot menu to complete the revert.
+#    The system will boot and merge the snapshots, reverting to the pre-upgrade state.
+```
 
 ### snapshot_lvm_snapset_name
 
@@ -285,10 +337,17 @@ entry.  The boot entry will be removed when the snapset is removed.
 Boolean - default is false.  Only supported on operating systems that
 support snapshot manager (snapm) version 0.5.0 or later.  When set to true,
 and passed to the 'snapshot' command, the snapshot created will have a
-corresponding revert boot entry.  Booting into the revert entry will trigger
-an automatic revert operation, merging the snapshot back into the origin
-volume.  This provides a boot-time rollback mechanism for disaster recovery.
-The revert boot entry will be removed when the snapset is removed.
+corresponding revert boot entry.
+
+To perform a disaster recovery revert:
+
+1. Run `snapshot_lvm_action: revert` to initiate the revert operation
+2. Reboot into the revert boot entry to complete the revert
+
+The revert boot entry is part of a two-step process and does NOT initiate a
+revert on its own - you must first run the revert action, then boot into the
+revert entry. The revert boot entry will be removed when the snapset is removed
+or after a successful revert operation completes.
 
 ### snapshot_use_copr (EXPERIMENTAL)
 
