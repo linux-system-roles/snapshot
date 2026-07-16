@@ -332,12 +332,40 @@ support snapshot manager (snapm).  When set to true, and passed to the
 'snapshot' command, the snapshot created will have a corresponding boot
 entry.  The boot entry will be removed when the snapset is removed.
 
+This parameter can be set in two locations:
+
+- **Global level**: `snapshot_lvm_bootable: true` applies to all snapshots
+- **Set level**: `bootable: true` in the `snapshot_lvm_set` definition
+
+**Precedence and conflict handling:**
+
+- If the global parameter is set, it takes precedence
+- If both global and set-level parameters are set to **different** values
+  (e.g., global is `true` and set-level is `false`), the role will fail with
+  `ERROR_BOOTABLE_CONFLICT` and no snapshot will be created
+- If both are set to the **same** value, the operation proceeds normally
+- If only one is set, that value is used
+
 ### snapshot_lvm_revertable
 
 Boolean - default is false.  Only supported on operating systems that
 support snapshot manager (snapm) version 0.5.0 or later.  When set to true,
 and passed to the 'snapshot' command, the snapshot created will have a
 corresponding revert boot entry.
+
+This parameter can be set in two locations:
+
+- **Global level**: `snapshot_lvm_revertable: true` applies to all snapshots
+- **Set level**: `revertable: true` in the `snapshot_lvm_set` definition
+
+**Precedence and conflict handling:**
+
+- If the global parameter is set, it takes precedence
+- If both global and set-level parameters are set to **different** values
+  (e.g., global is `true` and set-level is `false`), the role will fail with
+  `ERROR_REVERTABLE_CONFLICT` and no snapshot will be created
+- If both are set to the **same** value, the operation proceeds normally
+- If only one is set, that value is used
 
 To perform a disaster recovery revert:
 
