@@ -13,4 +13,9 @@
 - name: Define reusable variables
   ansible.builtin.set_fact:
     is_bootable: "{{ _raw_data.Bootable | bool }}"
-    boot_entries_list: "{{ _raw_data.BootEntries.values() | list }}"
+    boot_entries_list: "{{ (_raw_data.BootEntries | d({})).values() | list }}"
+    _revert_entry: "{{ (_raw_data.BootEntries | d({})).RevertEntry | d('') }}"
+
+- name: Set is_revertable based on revert entry
+  ansible.builtin.set_fact:
+    is_revertable: "{{ _revert_entry | length > 0 }}"

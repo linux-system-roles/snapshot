@@ -303,7 +303,11 @@ def mgr_snapshot_cmd(module, module_args, snapset_json):
     manager = snap_manager.Manager()
 
     try:
-        # Build kwargs for create_snapshot_set based on available parameters
+        # Build kwargs for create_snapshot_set based on available parameters.
+        # Use kwargs dict to conditionally pass optional parameters based on
+        # snapm version support. This avoids needing separate code paths for
+        # each combination (e.g., boot-only, revert-only, both, neither).
+        # Each version check adds its parameter to kwargs if supported.
         kwargs = {}
         if has_boot_parameter():
             kwargs["boot"] = bootable

@@ -1,0 +1,109 @@
+---
+- name: Snapshot a set of volumes with snapshot_lvm_revertable set to true
+  hosts: all
+  vars:
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+          - name: lv2
+            size: "50%"
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "10%"
+          - name: lv4
+            size: "20%"
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "30%"
+          - name: lv6
+            size: "25%"
+          - name: lv7
+            size: "10%"
+          - name: lv8
+            size: "10%"
+    snapshot_test_set:
+      name: snapset1
+      revertable: true
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+        - name: snapshot VG2 LV4
+          vg: test_vg2
+          lv: lv4
+          percent_space_required: 15
+        - name: snapshot VG3 LV7
+          vg: test_vg3
+          lv: lv7
+          percent_space_required: 15
+  tasks:
+    - name: Load test variables
+      include_vars:
+        file: vars/rh_distros_vars.yml
+      when: __snapshot_is_ostree is not defined
+
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot set of LVs with revert entry
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert changes for create snapset
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Get snapset details
+          ansible.builtin.include_tasks: get_snapset_status.yml
+          vars:
+            snapset_name: "{{ snapshot_test_set.name }}"
+
+        - name: Fail if not revertable
+          assert:
+            that: is_revertable
+
+        - name: Remove the snapshot set
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Remove again to check idempotence
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_action: remove
+            snapshot_lvm_set: "{{ snapshot_test_set }}"
+
+        - name: Assert no changes for remove snapset
+          assert:
+            that: not snapshot_cmd["changed"]
+      rescue:
+        - name: Do not fail if snapm is not available or too old for test
+          assert:
+            that: ansible_failed_result.msg is search(msg1) or ansible_failed_result.msg is search(msg2) or ansible_failed_result.msg is search(msg3)
+          vars:
+            msg1: "Package snapm version .* is too old"
+            msg2: "Package snapm version 0.5 or later is required to use revertable snapsets"
+            msg3: "Revertable snapshots are not supported without snapm"
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
