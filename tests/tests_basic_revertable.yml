@@ -1,0 +1,136 @@
+---
+- name: Basic snapshot test with revertable boot entry
+  hosts: all
+  vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "15%"
+          - name: lv2
+            size: "50%"
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "10%"
+          - name: lv4
+            size: "20%"
+      - name: test_vg3
+        disks: "{{ range(6, 10) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv5
+            size: "30%"
+          - name: lv6
+            size: "25%"
+          - name: lv7
+            size: "10%"
+          - name: lv8
+            size: "10%"
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        - name: Run the snapshot role to create snapshot LVs with revert boot entry
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+            snapshot_lvm_revertable: true
+
+        - name: Assert changes for creation
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Verify the snapshot LVs are created
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Run the snapshot role again to check idempotence
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+
+        - name: Assert no changes for creation
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Verify again to check idempotence
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Assert no changes for verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Run the snapshot role remove the snapshot LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: remove
+
+        - name: Assert changes for removal
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Use the snapshot_lvm_verify option to make sure remove is done
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+
+        - name: Remove again to check idempotence
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: remove
+
+        - name: Assert no changes for remove
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Verify remove again to check idempotence
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+
+        - name: Assert no changes for remove verify
+          assert:
+            that: not snapshot_cmd["changed"]
+
+      rescue:
+        - name: Do not fail if snapm is not available or too old for test
+          assert:
+            that: ansible_failed_result.msg is search(msg1) or ansible_failed_result.msg is search(msg2) or ansible_failed_result.msg is search(msg3)
+          vars:
+            msg1: "Package snapm version .* is too old"
+            msg2: "Package snapm version 0.5 or later is required to use revertable snapsets"
+            msg3: "Revertable snapshots are not supported without snapm"
+
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup

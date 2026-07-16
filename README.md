@@ -120,6 +120,30 @@ that it applies, for example:
 The mount_origin flag defaults to false, so it is not necessary when the user is mounting the
 snapshot rather than the origin.
 
+To create a snapshot set with a revert boot entry for disaster recovery, the set would be
+defined with the "revertable" field:
+
+```yaml
+    snapshot_lvm_set:
+      name: snapset1
+      bootable: true
+      revertable: true
+      volumes:
+        - name: snapshot VG1 LV1
+          vg: test_vg1
+          lv: lv1
+          percent_space_required: 20
+        - name: snapshot VG2 LV3
+          vg: test_vg2
+          lv: lv3
+          percent_space_required: 15
+```
+
+When `revertable: true` is set, a revert boot entry will be created in the boot menu.
+Booting into this entry will automatically merge the snapshots back into their origin volumes,
+providing a boot-time rollback mechanism. Both bootable and revertable can be set independently
+or together.
+
 ### snapshot_lvm_snapset_name
 
 This variable is required. snapshot_lvm_snapset_name is a string that will be
@@ -255,6 +279,16 @@ Boolean - default is false.  Only supported on operating systems that
 support snapshot manager (snapm).  When set to true, and passed to the
 'snapshot' command, the snapshot created will have a corresponding boot
 entry.  The boot entry will be removed when the snapset is removed.
+
+### snapshot_lvm_revertable
+
+Boolean - default is false.  Only supported on operating systems that
+support snapshot manager (snapm) version 0.5.0 or later.  When set to true,
+and passed to the 'snapshot' command, the snapshot created will have a
+corresponding revert boot entry.  Booting into the revert entry will trigger
+an automatic revert operation, merging the snapshot back into the origin
+volume.  This provides a boot-time rollback mechanism for disaster recovery.
+The revert boot entry will be removed when the snapset is removed.
 
 ### snapshot_use_copr (EXPERIMENTAL)
 
