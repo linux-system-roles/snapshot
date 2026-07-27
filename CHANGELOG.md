@@ -1,6 +1,21 @@
 Changelog
 =========
 
+[1.8.0] - 2026-07-27
+--------------------
+
+### New Features
+
+- feat: add support for revertable snapshots with boot-time rollback capability (#183)
+
+### Other Changes
+
+- ci: use gha checkout v7, codecov v7 [citest_skip] (#180)
+- ci: bump actions/checkout from 6 to 7 (#181)
+- ci: Use our own pr_title_lint.py instead of NPM commitlint [citest_skip] (#182)
+- ci: bump tox-lsr version to 3.20.0 to fix tox 4.58 api breakage [citest_skip] (#184)
+- ci: Add support for Fedora 44 and drop Fedora 42 - use ansible-core 2.21 [citest_skip] (#186)
+
 [1.7.3] - 2026-06-24
 --------------------
 
