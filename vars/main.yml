@@ -29,6 +29,8 @@ __snapshot_required_facts:
 __snapshot_required_facts_subsets: "{{ ['!all', '!min'] +
   __snapshot_required_facts }}"
 
+__snapshot_write_log_file: false
+
 # BEGIN - DO NOT EDIT THIS BLOCK - rh distros variables
 # Ansible distribution identifiers that the role treats like RHEL
 __snapshot_rh_distros:
