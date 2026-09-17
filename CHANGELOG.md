@@ -1,6 +1,20 @@
 Changelog
 =========
 
+[1.9.1] - 2026-09-17
+--------------------
+
+### Other Changes
+
+- ci: use commit hash for github action, add persist-credentials false [citest_skip] (#194)
+- ci: refactor build_docs so that pandoc runs in isolated read-only job [citest_skip] (#195)
+- ci: use exact match for systemroller instead of contains [citest_skip] (#196)
+- ci(build_docs): fix pandoc container syntax [citest_skip] (#197)
+- refactor: Relax collection constraints, gate vendored modules by python version, update ci versions [citest_skip] (#203)
+- ci: do not run ci tests by default, require citest comment or label [citest_skip] (#204)
+- ci: replace weekly_ci with periodic_ci, stagger schedules [citest_skip] (#205)
+- ci: update status when action triggered by issue comment (#206)
+
 [1.9.0] - 2026-08-06
 --------------------
 
