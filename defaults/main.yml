@@ -18,3 +18,4 @@ snapshot_lvm_mount_options: ''
 snapshot_lvm_vg_include: ''
 snapshot_lvm_fstype: ''
 snapshot_lvm_bootable: false
+snapshot_lvm_revertable: false
