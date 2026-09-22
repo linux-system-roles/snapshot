@@ -1,0 +1,276 @@
+# SPDX-License-Identifier: MIT
+---
+argument_specs:
+  main:
+    short_description: The snapshot role.
+    description: >
+      The snapshot role allows you to create, check, list, remove,
+      extend, revert, mount, and unmount LVM snapshots on target
+      machines.
+
+      This role will install the necessary packages and run the
+      requested `snapshot_lvm_action` against the volumes described by
+      either the individual `snapshot_lvm_vg`/`snapshot_lvm_lv`
+      variables or a `snapshot_lvm_set` definition. On systems where the
+      snapshot manager (`snapm`) package is available, the role can also
+      create bootable and revertable snapshot sets.
+    options:
+      snapshot_lvm_action:
+        type: str
+        required: true
+        choices:
+          - snapshot
+          - check
+          - list
+          - remove
+          - revert
+          - extend
+          - mount
+          - umount
+        description: >
+          The snapshot operation to perform. `snapshot` creates
+          snapshots of the specified volume groups or logical volumes.
+          `check` validates that snapshot names do not conflict and that
+          there is sufficient space to take the snapshots. `list` lists
+          the status of the specified volume groups or logical volumes.
+          `remove` removes snapshots that conform to the specified
+          prefix and pattern. `revert` initiates a revert to merge
+          snapshots back into their origin volumes. `extend` extends a
+          snapshot to have at least
+          `snapshot_lvm_percent_space_required` space allocated to it.
+          `mount` mounts a file system on a mount point. `umount`
+          unmounts a file system.
+      snapshot_lvm_set:
+        type: dict
+        default: {}
+        description: >
+          A set of volumes to snapshot, check, list, remove, extend,
+          revert, mount, or unmount together. A set may contain any
+          number of volumes.
+        options:
+          name:
+            type: str
+            description: >
+              The name of the snapshot set. This is the set-based
+              equivalent of `snapshot_lvm_snapset_name`.
+          bootable:
+            type: bool
+            description: >
+              Whether the snapshot set should have a corresponding boot
+              entry. This is the set-based equivalent of
+              `snapshot_lvm_bootable`. Requires `snapm`. If this and
+              `snapshot_lvm_bootable` are both set, they must match or
+              the role fails.
+          revertable:
+            type: bool
+            description: >
+              Whether the snapshot set should have a corresponding
+              revert boot entry. This is the set-based equivalent of
+              `snapshot_lvm_revertable`. Requires `snapm` version `0.5`
+              or later. If this and `snapshot_lvm_revertable` are both
+              set, they must match or the role fails.
+          volumes:
+            type: list
+            elements: dict
+            default: []
+            description: >
+              The list of volumes that make up the set.
+            options:
+              name:
+                type: str
+                description: >
+                  A descriptive name for the volume. This is used only
+                  for logging and does not need to be unique.
+              vg:
+                type: str
+                required: true
+                description: >
+                  The name of the volume group that contains the
+                  logical volume. This is the set-based equivalent of
+                  `snapshot_lvm_vg`.
+              lv:
+                type: str
+                required: true
+                description: >
+                  The name of the logical volume. This is the set-based
+                  equivalent of `snapshot_lvm_lv`.
+              percent_space_required:
+                type: str
+                description: >
+                  The percentage of space in the volume group that must
+                  be available for the snapshot of this volume, such as
+                  `20`. This is the set-based equivalent of
+                  `snapshot_lvm_percent_space_required`.
+              mountpoint:
+                type: str
+                description: >
+                  The mount target for the resulting block device. This
+                  is the set-based equivalent of
+                  `snapshot_lvm_mountpoint`.
+              mountpoint_create:
+                type: bool
+                description: >
+                  Whether to create the mount point and any parent
+                  directories necessary for it if it does not already
+                  exist. This is the set-based equivalent of
+                  `snapshot_lvm_mountpoint_create`.
+              mount_origin:
+                type: bool
+                description: >
+                  Whether to mount the origin of the snapshot rather
+                  than the snapshot itself. This is the set-based
+                  equivalent of `snapshot_lvm_mount_origin`.
+              fstype:
+                type: str
+                description: >
+                  The file system type of the volume. This is the
+                  set-based equivalent of `snapshot_lvm_fstype`.
+              options:
+                type: str
+                description: >
+                  A comma-separated list of options to pass to the
+                  mount command for the file system, such as `nouuid`.
+                  This is the set-based equivalent of
+                  `snapshot_lvm_mount_options`.
+              all_targets:
+                type: bool
+                description: >
+                  Whether to unmount all mount points for the resulting
+                  block device. This is the set-based equivalent of
+                  `snapshot_lvm_unmount_all`.
+              thin_pool:
+                type: str
+                description: >
+                  The name of the LVM thin pool associated with the
+                  volume.
+      snapshot_lvm_snapset_name:
+        type: str
+        default: ''
+        description: >
+          The string that is appended to the name of the logical volume
+          when the snapshot is created. It identifies members of the
+          set. When provided, it must be at least one character long
+          and contain only valid characters for an LVM volume name:
+          letters, digits, underscore (`_`), hyphen (`-`), dot (`.`),
+          and plus (`+`). This is required unless `snapshot_lvm_set` is
+          used, in which case use the `name` suboption instead.
+      snapshot_lvm_percent_space_required:
+        type: str
+        default: ''
+        description: >
+          The percentage of space in the volume group that must be
+          available for the snapshot, such as `20`. LVM rounds this
+          value up to a full physical extent. This is required for the
+          `snapshot` and `check` actions unless `snapshot_lvm_set` is
+          used, in which case use the `percent_space_required` suboption
+          instead.
+      snapshot_lvm_all_vgs:
+        type: bool
+        default: false
+        description: >
+          Whether to snapshot all volume groups on the target system.
+          Mutually exclusive with `snapshot_lvm_vg`.
+      snapshot_lvm_vg:
+        type: str
+        default: ''
+        description: >
+          The name of the volume group to snapshot. If
+          `snapshot_lvm_lv` is also set, only that logical volume within
+          the volume group is snapshotted. This is required when
+          neither `snapshot_lvm_all_vgs` nor `snapshot_lvm_set` is set.
+          When `snapshot_lvm_set` is used, use the `vg` suboption
+          instead.
+      snapshot_lvm_lv:
+        type: str
+        default: ''
+        description: >
+          The name of the logical volume to snapshot within
+          `snapshot_lvm_vg`. Requires `snapshot_lvm_vg` to be set to a
+          valid volume group. When `snapshot_lvm_set` is used, use the
+          `lv` suboption instead.
+      snapshot_lvm_verify_only:
+        type: bool
+        default: false
+        description: >
+          Whether the `check` and `remove` actions should only verify
+          that the system is in the expected state instead of making
+          changes.
+      snapshot_lvm_mountpoint_create:
+        type: bool
+        default: false
+        description: >
+          Whether to create the mount point and any parent directories
+          necessary for it if it does not already exist. When
+          `snapshot_lvm_set` is used, use the `mountpoint_create`
+          suboption instead.
+      snapshot_lvm_mountpoint:
+        type: str
+        default: ''
+        description: >
+          The mount target for the resulting block device. When
+          `snapshot_lvm_set` is used, use the `mountpoint` suboption
+          instead.
+      snapshot_lvm_mount_origin:
+        type: bool
+        default: false
+        description: >
+          Whether to mount the origin of the snapshot rather than the
+          snapshot itself. When `snapshot_lvm_set` is used, use the
+          `mount_origin` suboption instead.
+      snapshot_lvm_fstype:
+        type: str
+        default: ''
+        description: >
+          The file system type of the volume being mounted. When
+          `snapshot_lvm_set` is used, use the `fstype` suboption
+          instead.
+      snapshot_lvm_mount_options:
+        type: str
+        default: ''
+        description: >
+          A comma-separated list of options to pass to the mount
+          command for the file system, such as `nouuid`. When
+          `snapshot_lvm_set` is used, use the `options` suboption
+          instead.
+      snapshot_lvm_unmount_all:
+        type: bool
+        default: false
+        description: >
+          Whether to unmount all mount points for the resulting block
+          device. When `snapshot_lvm_set` is used, use the
+          `all_targets` suboption instead.
+      snapshot_lvm_vg_include:
+        type: str
+        default: ''
+        description: >
+          A regular expression pattern that matches the names of the
+          volume groups to include when `snapshot_lvm_all_vgs` is set.
+          Volume groups whose names do not match the pattern are
+          excluded, such as `^sql_db_` to only operate on volume groups
+          whose names start with `sql_db_`.
+      snapshot_lvm_bootable:
+        type: bool
+        default: false
+        description: >
+          Whether the snapshot should have a corresponding boot entry.
+          Only supported on systems with the snapshot manager (`snapm`)
+          package. The boot entry is removed when the snapshot set is
+          removed. This can also be set per set using the `bootable`
+          suboption of `snapshot_lvm_set`; if both are set, they must
+          match or the role fails.
+      snapshot_lvm_revertable:
+        type: bool
+        default: false
+        description: >
+          Whether the snapshot should have a corresponding revert boot
+          entry. Only supported on systems with snapshot manager
+          (`snapm`) version `0.5` or later. Booting into the revert
+          entry after running the `revert` action merges the snapshot
+          back into its origin volume. This can also be set per set
+          using the `revertable` suboption of `snapshot_lvm_set`; if
+          both are set, they must match or the role fails.
+      snapshot_use_copr:
+        type: bool
+        description: >
+          Whether to enable the copr repository to install the latest
+          development version of `snapm`. This is experimental.

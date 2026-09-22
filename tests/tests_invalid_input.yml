@@ -1,0 +1,303 @@
+# SPDX-License-Identifier: MIT
+---
+# Verify meta/argument_specs.yml and tasks/assert_role_vars.yml reject bad
+# parameters. Each block runs the role expecting failure; rescue records
+# that outcome. None of these scenarios should reach real LVM commands -
+# they are all rejected during argument validation or early parameter
+# checks, so no storage setup is required.
+- name: Verify invalid parameters are rejected
+  hosts: all
+  tasks:
+    - name: Run invalid input tests
+      block:
+        # ====================================================
+        # Section 1: Verify role works with valid defaults
+        # ====================================================
+        - name: Run role with valid defaults
+          ansible.builtin.include_role:
+            name: linux-system-roles.snapshot
+          vars:
+            snapshot_lvm_action: list
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: __lsr_test_sanity__
+            snapshot_lvm_vg_include: '^__lsr_test_sanity_no_match__$'
+
+        - name: Mark valid defaults succeeded
+          ansible.builtin.set_fact:
+            __valid_defaults_succeeded: true
+
+        - name: Assert role completed with valid defaults
+          ansible.builtin.assert:
+            that:
+              - __valid_defaults_succeeded | default(false)
+            fail_msg: >-
+              Role should succeed with valid default parameters
+
+        # ====================================================
+        # Section 2: argument_specs validation (Ansible 2.11+)
+        # ====================================================
+        - name: Run argument specs validation tests
+          when: ansible_version.full is version("2.11", ">=")
+          block:
+            - name: Argument specs reject missing required snapshot_lvm_action
+              block:
+                - name: Run role without snapshot_lvm_action
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+              rescue:
+                - name: Mark missing snapshot_lvm_action rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_missing_action_failed: true
+                  when: >-
+                    'missing required arguments' in
+                    (ansible_failed_result | default({}) | to_json)
+
+            - name: Assert missing snapshot_lvm_action was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_missing_action_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject role invocations that do
+                  not set the required snapshot_lvm_action
+
+            - name: Argument specs reject invalid snapshot_lvm_action choice
+              block:
+                - name: Run role with invalid snapshot_lvm_action value
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+                  vars:
+                    snapshot_lvm_action: not_a_valid_action
+              rescue:
+                - name: Mark invalid snapshot_lvm_action rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_action_choice_failed: true
+
+            - name: Assert invalid snapshot_lvm_action choice was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_action_choice_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject snapshot_lvm_action values
+                  outside the allowed choices list
+
+            - name: Argument specs reject non-boolean snapshot_lvm_all_vgs
+              block:
+                - name: Run role with snapshot_lvm_all_vgs as a string
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+                  vars:
+                    snapshot_lvm_action: list
+                    snapshot_lvm_all_vgs: not_a_bool
+              rescue:
+                - name: Mark invalid snapshot_lvm_all_vgs rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_all_vgs_type_failed: true
+
+            - name: Assert invalid snapshot_lvm_all_vgs type was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_all_vgs_type_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject snapshot_lvm_all_vgs values
+                  that are not booleans
+
+            - name: Argument specs reject non-boolean snapshot_lvm_bootable
+              block:
+                - name: Run role with snapshot_lvm_bootable as a string
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+                  vars:
+                    snapshot_lvm_action: list
+                    snapshot_lvm_bootable: not_a_bool
+              rescue:
+                - name: Mark invalid snapshot_lvm_bootable rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_bootable_type_failed: true
+
+            - name: Assert invalid snapshot_lvm_bootable type was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_bootable_type_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject snapshot_lvm_bootable
+                  values that are not booleans
+
+            - name: Argument specs reject snapshot_lvm_set.volumes entry missing vg
+              block:
+                - name: Run role with a volume missing vg
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+                  vars:
+                    snapshot_lvm_action: list
+                    snapshot_lvm_set:
+                      name: argspectest
+                      volumes:
+                        - lv: lv1
+              rescue:
+                - name: Mark missing vg rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_missing_vg_failed: true
+                  when: >-
+                    'missing required arguments' in
+                    (ansible_failed_result | default({}) | to_json)
+
+            - name: Assert snapshot_lvm_set.volumes entry missing vg was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_missing_vg_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject snapshot_lvm_set.volumes
+                  entries without the required vg field
+
+            - name: Argument specs reject snapshot_lvm_set.volumes entry missing lv
+              block:
+                - name: Run role with a volume missing lv
+                  ansible.builtin.include_role:
+                    name: linux-system-roles.snapshot
+                  vars:
+                    snapshot_lvm_action: list
+                    snapshot_lvm_set:
+                      name: argspectest
+                      volumes:
+                        - vg: vg1
+              rescue:
+                - name: Mark missing lv rejected
+                  ansible.builtin.set_fact:
+                    __invalid_input_missing_lv_failed: true
+                  when: >-
+                    'missing required arguments' in
+                    (ansible_failed_result | default({}) | to_json)
+
+            - name: Assert snapshot_lvm_set.volumes entry missing lv was rejected
+              ansible.builtin.assert:
+                that:
+                  - __invalid_input_missing_lv_failed | default(false)
+                fail_msg: >-
+                  argument_specs should reject snapshot_lvm_set.volumes
+                  entries without the required lv field
+
+        # ====================================================
+        # Section 3: assert_role_vars validation (all versions)
+        # ====================================================
+
+        # --- format: snapshot_lvm_snapset_name ---
+        - name: Assert rejects snapshot_lvm_snapset_name with invalid characters
+          block:
+            - name: Run role with snapshot_lvm_snapset_name containing a space
+              ansible.builtin.include_role:
+                name: linux-system-roles.snapshot
+              vars:
+                snapshot_lvm_action: list
+                snapshot_lvm_all_vgs: true
+                snapshot_lvm_snapset_name: "bad name!"
+          rescue:
+            - name: Mark invalid snapset_name rejected
+              ansible.builtin.set_fact:
+                __invalid_input_snapset_name_chars_failed: true
+              when: >-
+                'snapshot_lvm_snapset_name must contain only' in
+                (ansible_failed_result | default({}) | to_json)
+
+        - name: Assert snapshot_lvm_snapset_name with invalid characters was rejected
+          ansible.builtin.assert:
+            that:
+              - __invalid_input_snapset_name_chars_failed | default(false)
+            fail_msg: >-
+              assert_role_vars should reject snapshot_lvm_snapset_name
+              values containing characters outside A-Z, a-z, 0-9, _, -,
+              ., and +
+
+        # --- format: snapshot_lvm_set.name ---
+        - name: Assert rejects snapshot_lvm_set.name with invalid characters
+          block:
+            - name: Run role with snapshot_lvm_set.name containing a space
+              ansible.builtin.include_role:
+                name: linux-system-roles.snapshot
+              vars:
+                snapshot_lvm_action: list
+                snapshot_lvm_set:
+                  name: "bad name!"
+          rescue:
+            - name: Mark invalid set name rejected
+              ansible.builtin.set_fact:
+                __invalid_input_set_name_chars_failed: true
+              when: >-
+                'snapshot_lvm_set.name must contain only' in
+                (ansible_failed_result | default({}) | to_json)
+
+        - name: Assert snapshot_lvm_set.name with invalid characters was rejected
+          ansible.builtin.assert:
+            that:
+              - __invalid_input_set_name_chars_failed | default(false)
+            fail_msg: >-
+              assert_role_vars should reject snapshot_lvm_set.name values
+              containing characters outside A-Z, a-z, 0-9, _, -, ., and +
+
+        # --- cross-field: snapshot_lvm_all_vgs and snapshot_lvm_vg ---
+        - name: Assert rejects snapshot_lvm_all_vgs and snapshot_lvm_vg set together
+          block:
+            - name: Run role with both snapshot_lvm_all_vgs and snapshot_lvm_vg
+              ansible.builtin.include_role:
+                name: linux-system-roles.snapshot
+              vars:
+                snapshot_lvm_action: list
+                snapshot_lvm_all_vgs: true
+                snapshot_lvm_vg: vg1
+          rescue:
+            - name: Mark all_vgs/vg conflict rejected
+              ansible.builtin.set_fact:
+                __invalid_input_all_vgs_vg_conflict_failed: true
+              when: >-
+                'mutually exclusive' in
+                (ansible_failed_result | default({}) | to_json)
+
+        - name: Assert snapshot_lvm_all_vgs and snapshot_lvm_vg conflict was rejected
+          ansible.builtin.assert:
+            that:
+              - __invalid_input_all_vgs_vg_conflict_failed | default(false)
+            fail_msg: >-
+              assert_role_vars should reject setting snapshot_lvm_all_vgs
+              and snapshot_lvm_vg at the same time
+
+        # --- format: snapshot_lvm_vg_include as an invalid regular expression ---
+        - name: Assert rejects invalid snapshot_lvm_vg_include regular expression
+          block:
+            - name: Run role with an unterminated snapshot_lvm_vg_include pattern
+              ansible.builtin.include_role:
+                name: linux-system-roles.snapshot
+              vars:
+                snapshot_lvm_action: list
+                snapshot_lvm_all_vgs: true
+                snapshot_lvm_snapset_name: snapset1
+                snapshot_lvm_vg_include: "(unclosed["
+          rescue:
+            - name: Mark invalid vg_include regex rejected
+              ansible.builtin.set_fact:
+                __invalid_input_vg_include_regex_failed: true
+              when: >-
+                'snapshot_lvm_vg_include must be a valid regular expression' in
+                (ansible_failed_result | default({}) | to_json)
+
+        - name: Assert invalid snapshot_lvm_vg_include regular expression was rejected
+          ansible.builtin.assert:
+            that:
+              - __invalid_input_vg_include_regex_failed | default(false)
+            fail_msg: >-
+              assert_role_vars should reject snapshot_lvm_vg_include
+              values that are not valid regular expressions
+
+      always:
+        - name: Clear test facts
+          ansible.builtin.set_fact:
+            __valid_defaults_succeeded:
+            __invalid_input_missing_action_failed:
+            __invalid_input_action_choice_failed:
+            __invalid_input_all_vgs_type_failed:
+            __invalid_input_bootable_type_failed:
+            __invalid_input_missing_vg_failed:
+            __invalid_input_missing_lv_failed:
+            __invalid_input_snapset_name_chars_failed:
+            __invalid_input_set_name_chars_failed:
+            __invalid_input_all_vgs_vg_conflict_failed:
+            __invalid_input_vg_include_regex_failed:
+          tags: tests::cleanup
