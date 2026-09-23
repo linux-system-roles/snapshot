@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Assert snapshot_lvm_snapset_name has only valid characters
+  ansible.builtin.assert:
+    that:
+      - snapshot_lvm_snapset_name is match('^[A-Za-z0-9_.+-]+$')
+    fail_msg: >-
+      snapshot_lvm_snapset_name must contain only letters, digits,
+      underscore (_), hyphen (-), dot (.), and plus (+),
+      got '{{ snapshot_lvm_snapset_name }}'
+  when:
+    - snapshot_lvm_snapset_name is defined
+    - snapshot_lvm_snapset_name | length > 0
+
+- name: Assert snapshot_lvm_set.name has only valid characters
+  ansible.builtin.assert:
+    that:
+      - snapshot_lvm_set.name is match('^[A-Za-z0-9_.+-]+$')
+    fail_msg: >-
+      snapshot_lvm_set.name must contain only letters, digits,
+      underscore (_), hyphen (-), dot (.), and plus (+),
+      got '{{ snapshot_lvm_set.name }}'
+  when:
+    - snapshot_lvm_set.name is defined
+    - snapshot_lvm_set.name | length > 0
+
+- name: Assert snapshot_lvm_all_vgs and snapshot_lvm_vg are not both set
+  ansible.builtin.assert:
+    that:
+      - not (snapshot_lvm_all_vgs | bool and snapshot_lvm_vg | length > 0)
+    fail_msg: >-
+      snapshot_lvm_all_vgs and snapshot_lvm_vg are mutually exclusive
+  when:
+    - snapshot_lvm_all_vgs is defined
+    - snapshot_lvm_vg is defined
+
+- name: Validate snapshot_lvm_vg_include is a valid regular expression
+  when:
+    - snapshot_lvm_vg_include is defined
+    - snapshot_lvm_vg_include | length > 0
+  block:
+    - name: Attempt to use snapshot_lvm_vg_include as a regular expression
+      ansible.builtin.set_fact:
+        __snapshot_vg_include_test: "{{ 'x' | regex_search(snapshot_lvm_vg_include) }}"
+  rescue:
+    - name: Fail with a clear error for an invalid snapshot_lvm_vg_include pattern
+      ansible.builtin.fail:
+        msg: >-
+          snapshot_lvm_vg_include must be a valid regular expression,
+          got '{{ snapshot_lvm_vg_include }}'

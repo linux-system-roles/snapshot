@@ -3,6 +3,9 @@
 - name: Set platform/version specific variables
   include_tasks: tasks/set_vars.yml
 
+- name: Validate role parameters
+  ansible.builtin.include_tasks: assert_role_vars.yml
+
 - name: Enable copr if requested
   include_tasks: enable_copr.yml
   when: snapshot_use_copr | d(false)
