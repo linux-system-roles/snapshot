@@ -128,9 +128,52 @@
               Expected /dev/test_vg2/lv3 to be reported as unmounted but
               list reported {{ lv3_mounts }}
 
+        # umount without snapshot_lvm_unmount_all removes only the mount
+        # point that is named and leaves the others in place.
+        - name: Umount a single one of the mount points for lv1
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: "{{ multi_mountpoints[0] }}"
+
+        - name: Assert changes for the single umount
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: List again after unmounting a single mount point
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: list
+
+        - name: Assert list still reports the other mount points for lv1
+          assert:
+            that:
+              - snapshot_facts.mounts['/dev/test_vg1/lv1'] | length ==
+                multi_mountpoints[1:] | length
+              - snapshot_facts.mounts['/dev/test_vg1/lv1'] |
+                map(attribute='TARGET') | sort == multi_mountpoints[1:] | sort
+            fail_msg: >-
+              Expected /dev/test_vg1/lv1 to still be reported on
+              {{ multi_mountpoints[1:] }} but list reported
+              {{ snapshot_facts.mounts['/dev/test_vg1/lv1'] }}
+
+        - name: Assert unmounting one mount point of lv1 did not affect lv2
+          assert:
+            that:
+              - snapshot_facts.mounts['/dev/test_vg1/lv2'] | length == 1
+              - snapshot_facts.mounts['/dev/test_vg1/lv2'][0]["TARGET"] ==
+                single_mountpoint
+            fail_msg: >-
+              Unmounting one mount point of lv1 should not affect lv2 but
+              list reported {{ snapshot_facts.mounts['/dev/test_vg1/lv2'] }}
+
         # umount with snapshot_lvm_unmount_all removes every mount point
         # of the filesystem, not just the one that is named.
-        - name: Umount all of the mount points for lv1
+        - name: Umount the remaining mount points for lv1
           include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
@@ -138,13 +181,13 @@
             snapshot_lvm_vg: test_vg1
             snapshot_lvm_lv: lv1
             snapshot_lvm_unmount_all: true
-            snapshot_lvm_mountpoint: "{{ multi_mountpoints[0] }}"
+            snapshot_lvm_mountpoint: "{{ multi_mountpoints[1] }}"
 
-        - name: Assert changes for umount
+        - name: Assert changes for the umount of all remaining mount points
           assert:
             that: snapshot_cmd["changed"]
 
-        - name: List again after the umount
+        - name: List again after the umount of all remaining mount points
           include_tasks: tasks/run_role_with_clear_facts.yml
           vars:
             snapshot_lvm_snapset_name: snapset1
