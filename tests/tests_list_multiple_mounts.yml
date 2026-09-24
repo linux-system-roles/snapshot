@@ -1,0 +1,194 @@
+---
+- name: Verify list reports every mount point of a multiply mounted filesystem
+  hosts: all
+  vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv1
+            size: "30%"
+            fs_type: xfs
+          - name: lv2
+            size: "30%"
+            fs_type: xfs
+      - name: test_vg2
+        disks: "{{ range(3, 6) | map('extract', unused_disks) | list }}"
+        volumes:
+          - name: lv3
+            size: "30%"
+            fs_type: xfs
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        # test_mnt_parent is set by tasks/setup.yml
+        - name: Set the mount points used by the test
+          set_fact:
+            # lv1 is mounted on all of these at the same time
+            multi_mountpoints:
+              - "{{ test_mnt_parent ~ '/lv1_mp1' }}"
+              - "{{ test_mnt_parent ~ '/lv1_mp2' }}"
+              - "{{ test_mnt_parent ~ '/lv1_mp3' }}"
+            # lv2 is mounted on exactly one mount point
+            single_mountpoint: "{{ test_mnt_parent ~ '/lv2_mp' }}"
+
+        - name: Run the snapshot role to create snapshot LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 15
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+
+        - name: Verify the snapshot LVs are created
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Mount lv1 on several mount points at the same time
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mount_origin: true
+            snapshot_lvm_mountpoint_create: true
+            snapshot_lvm_mountpoint: "{{ item }}"
+          loop: "{{ multi_mountpoints }}"
+
+        - name: Mount lv2 on a single mount point
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv2
+            snapshot_lvm_mount_origin: true
+            snapshot_lvm_mountpoint_create: true
+            snapshot_lvm_mountpoint: "{{ single_mountpoint }}"
+
+        - name: List
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: list
+
+        - name: Assert no changes for list
+          assert:
+            that: not snapshot_cmd["changed"]
+
+        - name: Collect the mount entries reported by list
+          set_fact:
+            lv1_mounts: "{{ snapshot_facts.mounts['/dev/test_vg1/lv1'] }}"
+            lv2_mounts: "{{ snapshot_facts.mounts['/dev/test_vg1/lv2'] }}"
+            lv3_mounts: "{{ snapshot_facts.mounts['/dev/test_vg2/lv3'] }}"
+
+        - name: Assert list reports each mount point of the multiply mounted LV
+          assert:
+            that:
+              - lv1_mounts | length == multi_mountpoints | length
+              - lv1_mounts | map(attribute='TARGET') | sort ==
+                multi_mountpoints | sort
+            fail_msg: >-
+              Expected /dev/test_vg1/lv1 to be reported on
+              {{ multi_mountpoints }} but list reported {{ lv1_mounts }}
+
+        - name: Assert every mount entry reported for lv1 is the same device
+          assert:
+            that:
+              - lv1_mounts | map(attribute='SOURCE') | unique | length == 1
+              - lv1_mounts | map(attribute='FSTYPE') | unique == ["xfs"]
+            fail_msg: >-
+              Unexpected mount entries for /dev/test_vg1/lv1: {{ lv1_mounts }}
+
+        - name: Assert list reports a single mount point for the singly mounted LV
+          assert:
+            that:
+              - lv2_mounts | length == 1
+              - lv2_mounts[0]["TARGET"] == single_mountpoint
+            fail_msg: >-
+              Expected /dev/test_vg1/lv2 to be reported on
+              {{ single_mountpoint }} but list reported {{ lv2_mounts }}
+
+        - name: Assert list reports no mount points for the unmounted LV
+          assert:
+            that: lv3_mounts | length == 0
+            fail_msg: >-
+              Expected /dev/test_vg2/lv3 to be reported as unmounted but
+              list reported {{ lv3_mounts }}
+
+        # umount with snapshot_lvm_unmount_all removes every mount point
+        # of the filesystem, not just the one that is named.
+        - name: Umount all of the mount points for lv1
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_unmount_all: true
+            snapshot_lvm_mountpoint: "{{ multi_mountpoints[0] }}"
+
+        - name: Assert changes for umount
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: List again after the umount
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: list
+
+        - name: Assert list no longer reports any mount point for lv1
+          assert:
+            that: snapshot_facts.mounts['/dev/test_vg1/lv1'] | length == 0
+            fail_msg: >-
+              Expected /dev/test_vg1/lv1 to be reported as unmounted but list
+              reported {{ snapshot_facts.mounts['/dev/test_vg1/lv1'] }}
+
+        - name: Assert list still reports the mount point for lv2
+          assert:
+            that:
+              - snapshot_facts.mounts['/dev/test_vg1/lv2'] | length == 1
+              - snapshot_facts.mounts['/dev/test_vg1/lv2'][0]["TARGET"] ==
+                single_mountpoint
+            fail_msg: >-
+              Unmounting lv1 should not affect lv2 but list reported
+              {{ snapshot_facts.mounts['/dev/test_vg1/lv2'] }}
+
+        - name: Umount lv2
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv2
+            snapshot_lvm_mountpoint: "{{ single_mountpoint }}"
+
+        - name: Run the snapshot role remove the snapshot LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: remove
+
+        - name: Use the snapshot_lvm_verify option to make sure remove is done
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+      always:
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
