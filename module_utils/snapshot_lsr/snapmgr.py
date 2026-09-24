@@ -102,7 +102,10 @@ def mgr_get_snapshot_lv(module, origin_vg, origin_lv, snapshot_set):
 
     return (
         SnapshotStatus.ERROR_EXTEND_NOT_FOUND,
-        "mgr_get_snapshot_lv failure",
+        "snapshot not found in the snapset for source LV: "
+        + origin_vg
+        + "/"
+        + origin_lv,
         None,
         None,
     )
@@ -420,6 +423,17 @@ def mgr_extend_verify_snapshot_set(module, manager, snapset_name, volume_list):
     message = ""
     current_vg = ""
     snapshot_set = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
+
+    # The loop below only walks the snapshots that are in the set, so a
+    # requested volume that was never snapshotted would go unnoticed.  Reject
+    # the request the same way the extend command itself does.
+    for list_item in volume_list:
+        rc, message, _snapshot_vg, _snapshot_lv = mgr_get_snapshot_lv(
+            module, list_item["vg"], list_item["lv"], snapshot_set
+        )
+
+        if rc != SnapshotStatus.SNAPSHOT_OK:
+            return rc, message, False
 
     for snapshot in snapshot_set[0].snapshots:
 
