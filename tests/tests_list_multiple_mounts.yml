@@ -246,6 +246,7 @@
           when: item | length > 0
           failed_when: false
           changed_when: false
+          tags: tests::cleanup
 
         - name: Cleanup
           include_tasks: tasks/cleanup.yml
