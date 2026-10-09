@@ -36,7 +36,11 @@
   include_tasks: get_unused_disk.yml
   vars:
     min_size: "{{ test_disk_min_size }}"
-    min_return: "{{ test_disk_count }}"
+    # must match the value setup.yml used, so that the before and after disk
+    # lists are gathered the same way.  disks_needed is deliberately not set
+    # here: the task below already fails when a disk was not released, and it
+    # reports far more detail than the check in get_unused_disk.yml does.
+    max_return: "{{ test_disk_count }}"
 
 - name: Debug why list of unused disks has changed
   shell: |

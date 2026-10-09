@@ -44,7 +44,10 @@
     verbosity: 2
 
 - name: Try to find out why there are not enough unused disks
-  when: unused_disks | d([]) | length < disks_needed | d(1)
+  # disks_needed arrives as a string when it is given on the command line
+  # with -e, and comparing an int to a string raises rather than failing the
+  # check, so coerce it before the comparison
+  when: unused_disks | d([]) | length < (disks_needed | d(1) | int)
   block:
     - name: Print info from find_unused_disk
       debug:

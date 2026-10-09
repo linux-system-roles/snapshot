@@ -102,7 +102,10 @@ def mgr_get_snapshot_lv(module, origin_vg, origin_lv, snapshot_set):
 
     return (
         SnapshotStatus.ERROR_EXTEND_NOT_FOUND,
-        "mgr_get_snapshot_lv failure",
+        "snapshot not found in the snapset for source LV: "
+        + origin_vg
+        + "/"
+        + origin_lv,
         None,
         None,
     )
@@ -421,10 +424,12 @@ def mgr_extend_verify_snapshot_set(module, manager, snapset_name, volume_list):
     current_vg = ""
     snapshot_set = manager.find_snapshot_sets(snapm.Selection(name=snapset_name))
 
+    # Resolve the origin of every snapshot in the set once.  Each lookup runs
+    # lvs, so resolving them per requested volume would scale quadratically
+    # with the size of the set.
+    snapshot_origins = []
+    origins = set()
     for snapshot in snapshot_set[0].snapshots:
-
-        if current_vg != snapshot.vg_name:
-            current_vg = snapshot.vg_name
 
         rc, message, origin_vg_name, origin_lv_name = lvm_get_vg_lv_from_devpath(
             module, snapshot.origin
@@ -432,6 +437,28 @@ def mgr_extend_verify_snapshot_set(module, manager, snapset_name, volume_list):
 
         if rc != SnapshotStatus.SNAPSHOT_OK:
             return rc, message, False
+
+        snapshot_origins.append((snapshot, origin_vg_name, origin_lv_name))
+        origins.add((origin_vg_name, origin_lv_name))
+
+    # The loop below only walks the snapshots that are in the set, so a
+    # requested volume that was never snapshotted would go unnoticed.  Reject
+    # the request the same way the extend command itself does.
+    for list_item in volume_list:
+        if (list_item["vg"], list_item["lv"]) not in origins:
+            return (
+                SnapshotStatus.ERROR_EXTEND_NOT_FOUND,
+                "snapshot not found in the snapset for source LV: "
+                + list_item["vg"]
+                + "/"
+                + list_item["lv"],
+                False,
+            )
+
+    for snapshot, origin_vg_name, origin_lv_name in snapshot_origins:
+
+        if current_vg != snapshot.vg_name:
+            current_vg = snapshot.vg_name
 
         rc, message, percent_space_required = mgr_get_percent_space_required(
             origin_vg_name, origin_lv_name, volume_list
