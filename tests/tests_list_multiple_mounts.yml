@@ -107,8 +107,11 @@
         - name: Assert every mount entry reported for lv1 is the same device
           assert:
             that:
-              - lv1_mounts | map(attribute='SOURCE') | unique | length == 1
-              - lv1_mounts | map(attribute='FSTYPE') | unique == ["xfs"]
+              # unique returns a set on ansible-core 2.9, so the result has
+              # to be turned into a list before it is counted or compared
+              - lv1_mounts | map(attribute='SOURCE') | unique | list |
+                length == 1
+              - lv1_mounts | map(attribute='FSTYPE') | unique | sort == ["xfs"]
             fail_msg: >-
               Unexpected mount entries for /dev/test_vg1/lv1: {{ lv1_mounts }}
 
