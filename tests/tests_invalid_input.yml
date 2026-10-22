@@ -7,6 +7,13 @@
 # checks, so no storage setup is required.
 - name: Verify invalid parameters are rejected
   hosts: all
+  vars:
+    __invalid_input_failure_messages: >-
+      {{ ([ansible_failed_result.msg | default('') | string,
+           ansible_failed_result.msg.msg | default('') | string]
+          + (ansible_failed_result.results | default([])
+             | map(attribute='msg') | map('default', '') | list))
+         | join(' ') }}
   tasks:
     - name: Run invalid input tests
       block:
@@ -49,8 +56,8 @@
                   ansible.builtin.set_fact:
                     __invalid_input_missing_action_failed: true
                   when: >-
-                    'missing required arguments' in
-                    (ansible_failed_result | default({}) | to_json)
+                    'missing required arguments: snapshot_lvm_action'
+                    in __invalid_input_failure_messages
 
             - name: Assert missing snapshot_lvm_action was rejected
               ansible.builtin.assert:
@@ -71,6 +78,10 @@
                 - name: Mark invalid snapshot_lvm_action rejected
                   ansible.builtin.set_fact:
                     __invalid_input_action_choice_failed: true
+                  when: >-
+                    'value of snapshot_lvm_action must be one of'
+                    in __invalid_input_failure_messages and
+                    'got: not_a_valid_action' in __invalid_input_failure_messages
 
             - name: Assert invalid snapshot_lvm_action choice was rejected
               ansible.builtin.assert:
@@ -92,6 +103,10 @@
                 - name: Mark invalid snapshot_lvm_all_vgs rejected
                   ansible.builtin.set_fact:
                     __invalid_input_all_vgs_type_failed: true
+                  when: >-
+                    "argument 'snapshot_lvm_all_vgs'"
+                    in __invalid_input_failure_messages and
+                    'convert to bool' in __invalid_input_failure_messages
 
             - name: Assert invalid snapshot_lvm_all_vgs type was rejected
               ansible.builtin.assert:
@@ -113,6 +128,10 @@
                 - name: Mark invalid snapshot_lvm_bootable rejected
                   ansible.builtin.set_fact:
                     __invalid_input_bootable_type_failed: true
+                  when: >-
+                    "argument 'snapshot_lvm_bootable'"
+                    in __invalid_input_failure_messages and
+                    'convert to bool' in __invalid_input_failure_messages
 
             - name: Assert invalid snapshot_lvm_bootable type was rejected
               ansible.builtin.assert:
@@ -138,8 +157,8 @@
                   ansible.builtin.set_fact:
                     __invalid_input_missing_vg_failed: true
                   when: >-
-                    'missing required arguments' in
-                    (ansible_failed_result | default({}) | to_json)
+                    'missing required arguments: vg found in snapshot_lvm_set -> volumes'
+                    in __invalid_input_failure_messages
 
             - name: Assert snapshot_lvm_set.volumes entry missing vg was rejected
               ansible.builtin.assert:
@@ -165,8 +184,8 @@
                   ansible.builtin.set_fact:
                     __invalid_input_missing_lv_failed: true
                   when: >-
-                    'missing required arguments' in
-                    (ansible_failed_result | default({}) | to_json)
+                    'missing required arguments: lv found in snapshot_lvm_set -> volumes'
+                    in __invalid_input_failure_messages
 
             - name: Assert snapshot_lvm_set.volumes entry missing lv was rejected
               ansible.builtin.assert:
@@ -196,7 +215,7 @@
                 __invalid_input_snapset_name_chars_failed: true
               when: >-
                 'snapshot_lvm_snapset_name must contain only' in
-                (ansible_failed_result | default({}) | to_json)
+                __invalid_input_failure_messages
 
         - name: Assert snapshot_lvm_snapset_name with invalid characters was rejected
           ansible.builtin.assert:
@@ -223,7 +242,7 @@
                 __invalid_input_set_name_chars_failed: true
               when: >-
                 'snapshot_lvm_set.name must contain only' in
-                (ansible_failed_result | default({}) | to_json)
+                __invalid_input_failure_messages
 
         - name: Assert snapshot_lvm_set.name with invalid characters was rejected
           ansible.builtin.assert:
@@ -248,8 +267,8 @@
               ansible.builtin.set_fact:
                 __invalid_input_all_vgs_vg_conflict_failed: true
               when: >-
-                'mutually exclusive' in
-                (ansible_failed_result | default({}) | to_json)
+                'snapshot_lvm_all_vgs and snapshot_lvm_vg are mutually exclusive'
+                in __invalid_input_failure_messages
 
         - name: Assert snapshot_lvm_all_vgs and snapshot_lvm_vg conflict was rejected
           ansible.builtin.assert:
@@ -276,7 +295,7 @@
                 __invalid_input_vg_include_regex_failed: true
               when: >-
                 'snapshot_lvm_vg_include must be a valid regular expression' in
-                (ansible_failed_result | default({}) | to_json)
+                __invalid_input_failure_messages
 
         - name: Assert invalid snapshot_lvm_vg_include regular expression was rejected
           ansible.builtin.assert:
