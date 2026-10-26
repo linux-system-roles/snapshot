@@ -1,0 +1,143 @@
+---
+- name: Verify remove is refused while a device is in use
+  hosts: all
+  vars:
+    # only use vgs matching this pattern
+    snapshot_lvm_vg_include: "^test_"
+    test_disk_min_size: "1g"
+    test_disk_count: 10
+    test_storage_pools:
+      - name: test_vg1
+        disks: "{{ range(0, 3) | map('extract', unused_disks) | list }}"
+        # kept small so that the extend later in the test has room to grow
+        # the snapshots whatever the backend rounded the first allocation to
+        volumes:
+          - name: lv1
+            size: "15%"
+            fs_type: xfs
+          - name: lv2
+            size: "15%"
+            fs_type: xfs
+  tasks:
+    - name: Run tests
+      block:
+        - name: Setup
+          include_tasks: tasks/setup.yml
+
+        # test_mnt_parent is set by tasks/setup.yml
+        - name: Set the mount point used by the test
+          set_fact:
+            snapshot_mountpoint: "{{ test_mnt_parent ~ '/lv1_snapshot_mp' }}"
+
+        - name: Run the snapshot role to create snapshot LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 20
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: snapshot
+
+        - name: Verify the snapshot LVs are created
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Mount the snapshot for lv1
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: mount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: "{{ snapshot_mountpoint }}"
+            snapshot_lvm_mountpoint_create: true
+
+        # snapm refuses the delete itself and reports that the snapshots are
+        # mounted, the lvm path reports the volume that is in use or could not
+        # delete all snapshots
+        - name: Test failure removing a set while a snapshot is mounted
+          include_tasks: verify-role-failed.yml
+          vars:
+            __snapshot_failed_regex: "in use|are mounted|Could not delete all snapshots"
+            __snapshot_failed_msg:
+              Role did not fail to remove a set with a mounted snapshot
+            __snapshot_failed_params:
+              snapshot_lvm_all_vgs: true
+              snapshot_lvm_snapset_name: snapset1
+              snapshot_lvm_action: remove
+            __snapshot_failed_changed: false
+
+        # extending a mounted snapshot is safe, so it must still be allowed
+        - name: Extend the set while the snapshot is mounted
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_percent_space_required: 60
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: extend
+
+        # whether the extend resizes anything depends on how much the backend
+        # rounded the original allocation up, so assert that the request was
+        # accepted rather than that it changed the size.  the errors field is
+        # not checked because it also carries informational text, such as
+        # "source list empty" when no volume needed to grow.
+        - name: Assert extend was accepted while the snapshot is mounted
+          assert:
+            that: snapshot_cmd["return_code"] == 0
+            fail_msg: >-
+              Extending a set with a mounted snapshot should be allowed but
+              the role reported {{ snapshot_cmd }}
+
+        - name: Umount the snapshot for lv1
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: umount
+            snapshot_lvm_vg: test_vg1
+            snapshot_lvm_lv: lv1
+            snapshot_lvm_mountpoint: "{{ snapshot_mountpoint }}"
+
+        # the refused requests must not have changed the set
+        - name: Verify the set still exists after the refused requests
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: check
+
+        - name: Run the snapshot role remove the snapshot LVs
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_action: remove
+
+        - name: Assert changes for remove
+          assert:
+            that: snapshot_cmd["changed"]
+
+        - name: Use the snapshot_lvm_verify option to make sure remove is done
+          include_tasks: tasks/run_role_with_clear_facts.yml
+          vars:
+            snapshot_lvm_all_vgs: true
+            snapshot_lvm_snapset_name: snapset1
+            snapshot_lvm_verify_only: true
+            snapshot_lvm_action: remove
+
+      always:
+        # the test leaves the volumes mounted if it stops early, and
+        # tasks/cleanup.yml cannot remove a pool whose device is active
+        - name: Unmount anything the test left mounted
+          command: umount {{ snapshot_mountpoint }}
+          when: snapshot_mountpoint is defined
+          failed_when: false
+          changed_when: false
+          tags: tests::cleanup
+
+        - name: Cleanup
+          include_tasks: tasks/cleanup.yml
+          tags: tests::cleanup
