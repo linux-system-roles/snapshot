@@ -489,7 +489,7 @@ def mgr_extend_verify_snapshot_set(module, manager, snapset_name, volume_list):
             return (
                 SnapshotStatus.ERROR_EXTEND_VERIFY_FAILED,
                 "verify failed due to insufficient space for: "
-                + origin_lv_name
+                + origin_vg_name
                 + "/"
                 + origin_lv_name,
                 False,
@@ -546,6 +546,10 @@ def mgr_extend_cmd(module, module_args, snapset_json):
         message = "".join(snap_err.args)
         if message == "lvresize failed with: No size change":
             rc = SnapshotStatus.SNAPSHOT_OK
+        else:
+            # without this the caller is told the extend succeeded, and the
+            # only sign that it did not is the error text
+            rc = SnapshotStatus.ERROR_EXTEND_FAILED
     # Snapshot Manager should only raise SnapmError - there is a bug if an
     # Exception is raised
     except Exception as err:
@@ -557,7 +561,7 @@ def mgr_extend_cmd(module, module_args, snapset_json):
 
 def mgr_revert_cmd(module_args, snapset_json):
     snapset_name = snapset_json["name"]
-    logger.info("extend snapsset : %s", snapset_name)
+    logger.info("revert snapsset : %s", snapset_name)
     changed = False
     rc = SnapshotStatus.SNAPSHOT_OK
     message = ""
@@ -579,6 +583,7 @@ def mgr_revert_cmd(module_args, snapset_json):
         # Ignore not found errors - the snapset has already benn reverted
         if not isinstance(snap_err, snapm.SnapmNotFoundError):
             message = str(snap_err)
+            rc = SnapshotStatus.ERROR_REVERT_FAILED
     # Snapshot Manager should only raise SnapmError - there is a bug if an
     # Exception is raised
     except Exception as err:
