@@ -1,6 +1,40 @@
 Changelog
 =========
 
+[1.10.0] - 2026-11-23
+--------------------
+
+### New Features
+
+- feat: Argument spec implementation for snapshot role (#209)
+
+### Bug Fixes
+
+- fix: reject extend of a volume that has no snapshot in the snapset (#214)
+- fix: report a failed snapm extend as a failure (#219)
+
+### Other Changes
+
+- ci: no CI test by default - implement slash commands for CI tests [citest_skip] (#208)
+- ci: ansible-test-milestone is now version 2.23 - update sanity ignore files (#210)
+- ci: allow lsr org members to run ci tests (#211)
+- ci: Run Dependabot monthly and group changes in a single PR (#212)
+- ci: bump tox-lsr version 3.21.0, myrotvorets/set-commit-status-action, support leap-16.0 (#213)
+- ci: use shared actions and lock workflow dependencies (#215)
+- ci: use shared actions and lock workflow dependencies (#216)
+- ci: Use order 10 for centos vault task so that it runs first (#217)
+- test: check invalid inputs for correct error message (#218)
+- docs: add AI policy; update setup-python, codeql actions (#220)
+- ci: retry centos vault repo failures using new package_retry yum/dnf plugin (#221)
+- docs: tag markdown plain text blocks correctly (#222)
+- ci: Use a fixed 5 minute backoff for CentOS vault repos (#223)
+- ci: support Fedora 45, Ansible 2.22; drop Fedora 43 (#224)
+- ci: use ubuntu 24.04 for test envs that use py39 (#225)
+- ci: use ubuntu 26.04 with podman 5.x and disable apparmor restriction (#226)
+- docs: add AGENTS.md with shared developer conventions from .github (#227)
+- docs: remove extra blank lines from .coderabbit.yaml (#228)
+- ci: update tox-lsr for support for tests/module_utils (#229)
+
 [1.9.1] - 2026-09-17
 --------------------
 
